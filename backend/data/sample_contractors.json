@@ -1,0 +1,67 @@
+[
+  {
+    "name": "BP Roofing",
+    "address": "136-21 39th Ave, Flushing, NY 11354",
+    "city": "Flushing",
+    "state": "NY",
+    "zip_code": "11354",
+    "phone": "(718) 762-3200",
+    "website": "https://www.bproofing.com",
+    "certification": "Master Elite",
+    "rating": 4.9,
+    "review_count": 187,
+    "services": ["Residential Roofing", "Commercial Roofing", "Roof Repair", "Gutters"]
+  },
+  {
+    "name": "King Quality Construction",
+    "address": "40 Oser Ave Suite 5, Hauppauge, NY 11788",
+    "city": "Hauppauge",
+    "state": "NY",
+    "zip_code": "11788",
+    "phone": "(631) 573-0642",
+    "website": "https://www.kingquality.com",
+    "certification": "Master Elite",
+    "rating": 4.8,
+    "review_count": 312,
+    "services": ["Residential Roofing", "Siding", "Windows", "Solar"]
+  },
+  {
+    "name": "A&J Reliable",
+    "address": "96-14 Jamaica Ave, Woodhaven, NY 11421",
+    "city": "Woodhaven",
+    "state": "NY",
+    "zip_code": "11421",
+    "phone": "(718) 849-0404",
+    "website": "https://www.ajreliable.com",
+    "certification": "Certified",
+    "rating": 4.6,
+    "review_count": 95,
+    "services": ["Residential Roofing", "Roof Repair", "Skylights", "Gutters"]
+  },
+  {
+    "name": "Supreme Roofing & Siding",
+    "address": "1815 Broadhollow Rd, Farmingdale, NY 11735",
+    "city": "Farmingdale",
+    "state": "NY",
+    "zip_code": "11735",
+    "phone": "(516) 433-0700",
+    "website": "https://www.supremeroofing.com",
+    "certification": "Master Elite",
+    "rating": 4.7,
+    "review_count": 224,
+    "services": ["Residential Roofing", "Commercial Roofing", "Siding", "Gutters", "Windows"]
+  },
+  {
+    "name": "All American Home Improvement",
+    "address": "109-09 72nd Rd, Forest Hills, NY 11375",
+    "city": "Forest Hills",
+    "state": "NY",
+    "zip_code": "11375",
+    "phone": "(718) 268-7400",
+    "website": "https://www.aahi.com",
+    "certification": "Certified",
+    "rating": 4.3,
+    "review_count": 42,
+    "services": ["Residential Roofing", "Roof Repair"]
+  }
+]
