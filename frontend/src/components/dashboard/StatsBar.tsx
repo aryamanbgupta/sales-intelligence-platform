@@ -10,7 +10,7 @@ function StatCard({
   accent?: string;
 }) {
   return (
-    <div className="border-r border-b border-neutral-900 px-5 py-5 last:border-r-0">
+    <div className="border-r border-b border-neutral-900 px-5 py-5">
       <p
         className={`text-3xl font-light tabular-nums ${accent || "text-foreground"}`}
       >

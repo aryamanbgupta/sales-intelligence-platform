@@ -53,12 +53,13 @@ export default function RootLayout({
               >
                 Dashboard
               </Link>
-              <span
-                className="text-gray-300 text-xs font-medium tracking-widest uppercase"
+              <Link
+                href="/pipeline"
+                className="text-gray-300 text-xs font-medium tracking-widest uppercase hover:text-white transition-colors"
                 style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
               >
                 Pipeline
-              </span>
+              </Link>
               <span className="px-4 py-1.5 text-xs font-medium text-white border border-white/80 rounded-2xl tracking-wide">
                 Deploy InstaWorkers
               </span>

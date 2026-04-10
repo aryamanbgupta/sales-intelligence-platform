@@ -1,4 +1,4 @@
-import type { LeadListResponse, LeadDetail, StatsResponse } from "./types";
+import type { LeadListResponse, LeadDetail, StatsResponse, PipelineStatusResponse } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -37,4 +37,8 @@ export function getLead(id: number): Promise<LeadDetail> {
 
 export function getStats(): Promise<StatsResponse> {
   return fetchApi<StatsResponse>("/api/stats");
+}
+
+export function getPipelineStatus(): Promise<PipelineStatusResponse> {
+  return fetchApi<PipelineStatusResponse>("/api/pipeline/status");
 }

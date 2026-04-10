@@ -55,16 +55,10 @@ export default function LeadTable({
   return (
     <div className="border border-neutral-200 overflow-hidden">
       {/* Table header */}
-      <div className="grid grid-cols-[56px_1fr_160px_150px_64px] items-center gap-4 px-5 py-3 border-b border-neutral-900 bg-neutral-50">
+      <div className="grid grid-cols-[56px_1fr_120px_72px] items-center gap-4 px-5 py-3 border-b border-neutral-900 bg-neutral-50">
         <SortHeader label="Score" column="lead_score" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
         <SortHeader label="Contractor" column="name" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
-        <span
-          className="text-xs font-medium text-neutral-500 uppercase tracking-widest"
-          style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
-        >
-          Cert
-        </span>
-        <SortHeader label="Rating" column="rating" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
+        <SortHeader label="Est. Volume" column="review_count" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
         <SortHeader label="Dist" column="distance_miles" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
       </div>
 
