@@ -42,3 +42,25 @@ export function getStats(): Promise<StatsResponse> {
 export function getPipelineStatus(): Promise<PipelineStatusResponse> {
   return fetchApi<PipelineStatusResponse>("/api/pipeline/status");
 }
+
+// --- Chat ---
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface ChatResponse {
+  response: string;
+}
+
+export function sendChatMessage(
+  message: string,
+  history: ChatMessage[],
+): Promise<ChatResponse> {
+  return fetchApi<ChatResponse>("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, history }),
+  });
+}

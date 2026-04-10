@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import Link from "next/link";
+import ChatPanel from "@/components/chat/ChatPanel";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
@@ -84,6 +85,8 @@ export default function RootLayout({
             <p className="text-gray-500 text-xs">&copy; 2026</p>
           </div>
         </footer>
+
+        <ChatPanel />
       </body>
     </html>
   );
