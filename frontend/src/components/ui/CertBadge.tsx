@@ -7,8 +7,10 @@ export default function CertBadge({
 }) {
   const config = (certification && CERT_CONFIG[certification]) || CERT_DEFAULT;
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${config.color}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${config.pillBg} ${config.pillText}`}
+      style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
+    >
       {certification || "Uncertified"}
     </span>
   );

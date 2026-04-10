@@ -9,17 +9,17 @@ export default function LeadRow({ lead }: { lead: LeadListItem }) {
   return (
     <Link
       href={`/leads/${lead.id}`}
-      className="grid grid-cols-[60px_1fr_150px_140px_70px] items-center gap-4 px-5 py-3.5 border-b border-border hover:bg-slate-50/70 transition-colors"
+      className="grid grid-cols-[56px_1fr_160px_150px_64px] items-center gap-4 px-5 py-4 border-b border-neutral-200 hover:bg-neutral-50 transition-colors"
     >
       <div>
         <ScorePill score={lead.lead_score} />
       </div>
       <div className="min-w-0">
-        <p className="font-medium text-sm truncate">{lead.name}</p>
-        <p className="text-xs text-muted truncate">
+        <p className="font-medium text-sm">{lead.name}</p>
+        <p className="text-xs text-muted mt-0.5">
           {[lead.city, lead.state].filter(Boolean).join(", ")}
           {lead.years_in_business && (
-            <span> &middot; {lead.years_in_business} yrs</span>
+            <span className="text-neutral-400"> &middot; {lead.years_in_business} yrs</span>
           )}
         </p>
       </div>
@@ -29,7 +29,10 @@ export default function LeadRow({ lead }: { lead: LeadListItem }) {
       <div>
         <StarRating rating={lead.rating} reviewCount={lead.review_count} />
       </div>
-      <div className="text-xs text-muted tabular-nums text-right">
+      <div
+        className="text-xs text-muted tabular-nums text-right"
+        style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
+      >
         {formatDistance(lead.distance_miles)}
       </div>
     </Link>

@@ -14,17 +14,22 @@ export default function ResearchSummary({
   if (!summary && citations.length === 0) return null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 border-t border-neutral-200 pt-8">
       {/* Collapsible research summary */}
       {summary && (
-        <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+        <div>
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full flex items-center justify-between px-5 py-3 text-xs font-semibold text-muted uppercase tracking-wider hover:bg-slate-50/50 transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between py-2 cursor-pointer group"
           >
-            Research Summary
+            <span
+              className="text-xs font-medium text-muted uppercase tracking-widest group-hover:text-foreground transition-colors"
+              style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
+            >
+              Research Summary
+            </span>
             <svg
-              className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+              className={`h-4 w-4 text-muted transition-transform ${expanded ? "rotate-180" : ""}`}
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth={2}
@@ -34,7 +39,7 @@ export default function ResearchSummary({
             </svg>
           </button>
           {expanded && (
-            <div className="px-5 pb-4 text-sm leading-relaxed text-muted whitespace-pre-wrap border-t border-border pt-3">
+            <div className="text-sm leading-relaxed text-muted font-light whitespace-pre-wrap pt-3 pb-2">
               {summary}
             </div>
           )}
@@ -43,8 +48,11 @@ export default function ResearchSummary({
 
       {/* Citations */}
       {citations.length > 0 && (
-        <div className="px-1">
-          <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+        <div>
+          <h4
+            className="text-xs font-medium text-muted uppercase tracking-widest mb-3"
+            style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
+          >
             Sources
           </h4>
           <div className="flex flex-wrap gap-2">
@@ -61,7 +69,8 @@ export default function ResearchSummary({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:text-blue-800 underline underline-offset-2"
+                  className="px-2.5 py-0.5 text-xs rounded-full border border-neutral-300 text-muted hover:border-neutral-900 hover:text-foreground transition-colors"
+                  style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
                 >
                   {label}
                 </a>

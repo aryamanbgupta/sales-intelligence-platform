@@ -1,11 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fdfff7;
-  --foreground: #0a0a0a;
-  --muted: #4a4a4a;
+  --background: #fefff7;
+  --foreground: #171717;
+  --muted: #404040;
   --card: #ffffff;
-  --border: #e5e7eb;
+  --border: #e5e5e5;
+  --dark: #171717;
+  --dark-card: rgba(38, 38, 38, 0.5);
+  --dark-border: #262626;
+  --accent: #fefff7;
 }
 
 @theme inline {
@@ -14,26 +18,22 @@
   --color-muted: var(--muted);
   --color-card: var(--card);
   --color-border: var(--border);
-  --color-cream: #fdfff7;
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-dark: var(--dark);
+  --color-dark-card: var(--dark-card);
+  --color-dark-border: var(--dark-border);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-ibm-plex-sans);
+  --font-mono: var(--font-ibm-plex-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-ibm-plex-sans), "IBM Plex Sans", Arial, Helvetica, sans-serif;
 }
 
-/* Subtle grain texture overlay */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 50;
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 256px 256px;
+/* Subtle dot grid pattern for white sections (Instalily style) */
+.dot-grid {
+  background-image: radial-gradient(rgb(229, 229, 229) 1px, rgba(0, 0, 0, 0) 1px);
+  background-size: 24px 24px;
 }

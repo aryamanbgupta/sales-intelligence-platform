@@ -146,7 +146,20 @@ function Dashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
+    <div className="mx-auto max-w-5xl px-6 py-12 space-y-10">
+      {/* Instalily-style section eyebrow + heading */}
+      <div>
+        <p
+          className="text-xs font-medium text-muted uppercase tracking-widest mb-3"
+          style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
+        >
+          Lead Intelligence
+        </p>
+        <h1 className="text-4xl font-light text-foreground leading-tight">
+          Find your next best customer.
+        </h1>
+      </div>
+
       <StatsBar stats={stats} />
 
       <FilterBar
@@ -173,7 +186,7 @@ function Dashboard() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-7xl px-6 py-8 text-sm text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="mx-auto max-w-5xl px-6 py-12 text-sm text-muted">Loading...</div>}>
       <Dashboard />
     </Suspense>
   );

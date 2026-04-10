@@ -2,17 +2,23 @@ export default function TalkingPoints({ points }: { points: string[] }) {
   if (points.length === 0) return null;
 
   return (
-    <div className="bg-card rounded-lg border border-border shadow-sm p-5">
-      <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+    <div>
+      <h3
+        className="text-xs font-medium text-muted uppercase tracking-widest mb-4"
+        style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
+      >
         Talking Points
       </h3>
-      <ol className="space-y-2.5">
+      <ol className="space-y-3">
         {points.map((point, i) => (
           <li key={i} className="flex gap-3 text-sm leading-relaxed">
-            <span className="shrink-0 h-5 w-5 rounded-full bg-slate-100 text-xs font-semibold text-muted flex items-center justify-center">
-              {i + 1}
+            <span
+              className="shrink-0 text-xs font-semibold text-neutral-400 mt-0.5 w-5"
+              style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
+            >
+              {String(i + 1).padStart(2, "0")}
             </span>
-            <span>{point}</span>
+            <span className="font-light">{point}</span>
           </li>
         ))}
       </ol>

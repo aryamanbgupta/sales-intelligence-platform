@@ -9,11 +9,14 @@ export default function ScoreBreakdown({
   if (!breakdown || Object.keys(breakdown).length === 0) return null;
 
   return (
-    <div className="bg-card rounded-lg border border-border shadow-sm p-5">
-      <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+    <div>
+      <h3
+        className="text-xs font-medium text-muted uppercase tracking-widest mb-4"
+        style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
+      >
         Score Breakdown
       </h3>
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         {Object.entries(SCORE_BREAKDOWN_LABELS).map(([key, { label, max }]) => (
           <ProgressBar
             key={key}

@@ -2,11 +2,14 @@ export default function WhyNowBanner({ text }: { text: string | null | undefined
   if (!text) return null;
 
   return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4">
-      <h3 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1.5">
+    <div className="border-l-2 border-orange-500 pl-5 py-3">
+      <h3
+        className="text-xs font-medium text-orange-600 uppercase tracking-widest mb-1.5"
+        style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
+      >
         Why Now
       </h3>
-      <p className="text-sm text-amber-900 leading-relaxed">{text}</p>
+      <p className="text-base font-light leading-relaxed">{text}</p>
     </div>
   );
 }

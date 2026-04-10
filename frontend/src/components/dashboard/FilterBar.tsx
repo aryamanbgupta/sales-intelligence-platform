@@ -13,13 +13,13 @@ interface FilterBarProps {
 
 const TIER_OPTIONS = [
   { value: "", label: "All" },
-  { value: "hot", label: `Hot (${SCORE_TIERS.HOT.min}+)` },
-  { value: "warm", label: "Warm (40-59)" },
-  { value: "cold", label: "Cold (<40)" },
+  { value: "hot", label: `Hot ${SCORE_TIERS.HOT.min}+` },
+  { value: "warm", label: "Warm" },
+  { value: "cold", label: "Cold" },
 ];
 
 const CERT_OPTIONS = [
-  { value: "", label: "All Certifications" },
+  { value: "", label: "All Certs" },
   { value: "President's Club", label: "President's Club" },
   { value: "Master Elite", label: "Master Elite" },
 ];
@@ -33,11 +33,11 @@ export default function FilterBar({
   onSearchChange,
 }: FilterBarProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Search */}
       <div className="relative">
         <svg
-          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"
+          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400"
           fill="none"
           viewBox="0 0 24 24"
           strokeWidth={2}
@@ -54,41 +54,49 @@ export default function FilterBar({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search contractors..."
-          className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/10 placeholder:text-slate-400"
+          className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-neutral-200 rounded-none focus:outline-none focus:border-neutral-900 placeholder:text-neutral-400 transition-colors"
         />
       </div>
 
       {/* Filters row */}
       <div className="flex items-center gap-3 flex-wrap">
-        {/* Score tier chips */}
+        {/* Score tier pills — Instalily dark pill style */}
         <div className="flex items-center gap-1.5">
           {TIER_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => onScoreTierChange(opt.value)}
-              className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors cursor-pointer ${
+              className={`px-3.5 py-1 text-xs font-semibold rounded-full border transition-colors cursor-pointer tracking-wide ${
                 scoreTier === opt.value
-                  ? "bg-slate-900 text-white border-slate-900"
-                  : "bg-white text-muted border-border hover:border-slate-400"
+                  ? "bg-neutral-900 text-white border-neutral-900"
+                  : "bg-transparent text-muted border-neutral-300 hover:border-neutral-900"
               }`}
+              style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
             >
               {opt.label}
             </button>
           ))}
         </div>
 
-        {/* Certification dropdown */}
-        <select
-          value={certification}
-          onChange={(e) => onCertificationChange(e.target.value)}
-          className="text-xs border border-border rounded-lg px-3 py-1.5 bg-white text-muted focus:outline-none focus:ring-2 focus:ring-slate-900/10 cursor-pointer"
-        >
+        <div className="w-px h-5 bg-neutral-300" />
+
+        {/* Certification pills */}
+        <div className="flex items-center gap-1.5">
           {CERT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
+            <button
+              key={opt.value}
+              onClick={() => onCertificationChange(opt.value)}
+              className={`px-3.5 py-1 text-xs font-semibold rounded-full border transition-colors cursor-pointer tracking-wide ${
+                certification === opt.value
+                  ? "bg-neutral-900 text-white border-neutral-900"
+                  : "bg-transparent text-muted border-neutral-300 hover:border-neutral-900"
+              }`}
+              style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
+            >
               {opt.label}
-            </option>
+            </button>
           ))}
-        </select>
+        </div>
       </div>
     </div>
   );
