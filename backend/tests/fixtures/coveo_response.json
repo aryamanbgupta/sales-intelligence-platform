@@ -1,0 +1,26 @@
+{
+  "title": "ABC Roofing & Siding Inc",
+  "uri": "https://www.gaf.com/en-us/roofing-contractors/residential/usa/ny/new-york/abc-roofing-1004859",
+  "raw": {
+    "gaf_contractor_id": 1004859,
+    "gaf_navigation_title": "ABC Roofing & Siding Inc",
+    "gaf_contractor_type": "Residential",
+    "gaf_f_city": "New York",
+    "gaf_f_state_code": "NY",
+    "gaf_postal_code": "10013",
+    "gaf_phone": "(212) 555-0199",
+    "gaf_rating": 4.8,
+    "gaf_number_of_reviews": 127,
+    "gaf_latitude": 40.7195,
+    "gaf_longitude": -74.0089,
+    "distanceinmiles": 1.2345678,
+    "gaf_f_contractor_certifications_and_awards_residential": [
+      "Master Elite\u00ae Weather Stopper\u00ae Roofing Contractor",
+      "GAF Certified\u2122 Contractor"
+    ],
+    "gaf_f_contractor_specialties_residential": ["Steep Slope", "Solar"],
+    "gaf_f_contractor_technologies_residential": ["Timberline HDZ\u00ae"],
+    "gaf_featured_image_src": "https://img.gaf.com/contractors/1004859.jpg",
+    "uri": "https://www.gaf.com/en-us/roofing-contractors/residential/usa/ny/new-york/abc-roofing-1004859"
+  }
+}

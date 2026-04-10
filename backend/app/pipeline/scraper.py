@@ -30,8 +30,7 @@ from playwright.async_api import async_playwright, Response
 from app.config import (
     COVEO_API_URL,
     COVEO_ORG_ID,
-    COVEO_PIPELINE,
-    GAF_BASE_URL,
+    GAF_BASE_URLS,
     SCRAPER_RESULTS_PER_PAGE,
 )
 
@@ -71,18 +70,30 @@ class _CoveoContext:
 async def scrape_contractors(
     zip_code: str = "10013",
     distance: int = 25,
+    contractor_type: str = "residential",
 ) -> list[dict[str, Any]]:
     """
-    Scrape all residential contractors from GAF's directory for a given ZIP code.
+    Scrape all contractors from GAF's directory for a given ZIP code.
+
+    Args:
+        zip_code: US postal code to search around
+        distance: radius in miles (25, 50, or 100)
+        contractor_type: "residential" or "commercial"
 
     Returns a list of dicts, one per contractor, with these keys:
         gaf_id, name, address, city, state, zip_code, phone, website,
         certification, certifications_raw, rating, review_count,
         latitude, longitude, distance_miles, profile_url, image_url
     """
-    logger.info("Starting GAF scrape for ZIP %s, distance %d mi", zip_code, distance)
+    if contractor_type not in GAF_BASE_URLS:
+        raise ValueError(f"contractor_type must be one of {list(GAF_BASE_URLS)}")
 
-    ctx = await _load_initial_page(zip_code, distance)
+    logger.info(
+        "Starting GAF scrape: ZIP %s, distance %d mi, type %s",
+        zip_code, distance, contractor_type,
+    )
+
+    ctx = await _load_initial_page(zip_code, distance, contractor_type)
     if not ctx.bearer_token:
         raise RuntimeError("Failed to capture Coveo API credentials from GAF page")
 
@@ -116,7 +127,7 @@ async def scrape_contractors(
 # ---------------------------------------------------------------------------
 # Step 1: Playwright loads the page and intercepts the Coveo call
 # ---------------------------------------------------------------------------
-async def _load_initial_page(zip_code: str, distance: int) -> _CoveoContext:
+async def _load_initial_page(zip_code: str, distance: int, contractor_type: str = "residential") -> _CoveoContext:
     ctx = _CoveoContext()
 
     async def _on_request(request):
@@ -165,7 +176,8 @@ async def _load_initial_page(zip_code: str, distance: int) -> _CoveoContext:
         page.on("request", _on_request)
         page.on("response", _on_response)
 
-        url = f"{GAF_BASE_URL}?postalCode={zip_code}&countryCode=us&user=true&distance={distance}"
+        base_url = GAF_BASE_URLS[contractor_type]
+        url = f"{base_url}?postalCode={zip_code}&countryCode=us&user=true&distance={distance}"
         logger.info("Loading %s", url)
         await page.goto(url, wait_until="networkidle", timeout=60_000)
 
@@ -211,8 +223,12 @@ async def _fetch_coveo_page(
 def _parse_contractor(result: dict) -> dict[str, Any]:
     raw = result.get("raw", {})
 
-    # Extract the highest-tier certification label
-    certs_raw = raw.get("gaf_f_contractor_certifications_and_awards_residential", [])
+    # Determine contractor type and pick the right cert fields
+    contractor_type = raw.get("gaf_contractor_type", "Residential")
+    is_commercial = contractor_type.lower() == "commercial"
+    suffix = "commercial" if is_commercial else "residential"
+
+    certs_raw = raw.get(f"gaf_f_contractor_certifications_and_awards_{suffix}", [])
     certification = _pick_top_certification(certs_raw)
 
     # Build a readable address from components
@@ -229,14 +245,14 @@ def _parse_contractor(result: dict) -> dict[str, Any]:
         "state": state,
         "zip_code": zip_code,
         "phone": raw.get("gaf_phone", ""),
-        "website": "",  # Not in Coveo results; enrichment will find this
+        "website": "",  # Not in Coveo results; profile scraper fills this
         "certification": certification,
         "certifications_raw": json.dumps(certs_raw),
         "rating": raw.get("gaf_rating", 0.0),
         "review_count": raw.get("gaf_number_of_reviews", 0),
         "services": json.dumps(
-            raw.get("gaf_f_contractor_specialties_residential", [])
-            + raw.get("gaf_f_contractor_technologies_residential", [])
+            raw.get(f"gaf_f_contractor_specialties_{suffix}", [])
+            + raw.get(f"gaf_f_contractor_technologies_{suffix}", [])
         ),
         "latitude": raw.get("gaf_latitude"),
         "longitude": raw.get("gaf_longitude"),
@@ -247,12 +263,22 @@ def _parse_contractor(result: dict) -> dict[str, Any]:
 
 
 def _pick_top_certification(certs: list[str]) -> str:
-    """Return the highest-tier GAF certification from a list."""
-    # Priority order (highest to lowest)
+    """Return the highest-tier GAF certification from a list.
+
+    Handles both residential tiers (President's Club > Master Elite > Certified Plus > Certified)
+    and commercial tiers (Chairman's Circle > PlatinumElite > GoldElite > Certified).
+    """
     tiers = [
+        # Residential tiers (highest first)
         ("President's Club", "President's Club"),
         ("Master Elite", "Master Elite"),
         ("Certified Plus", "Certified Plus"),
+        # Commercial tiers
+        ("Chairman's Circle", "Chairman's Circle"),
+        ("PlatinumElite", "PlatinumElite"),
+        ("GoldElite", "GoldElite"),
+        ("CoatingsPro", "CoatingsPro"),
+        # Shared
         ("Certified", "Certified"),
     ]
     for keyword, label in tiers:

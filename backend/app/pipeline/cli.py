@@ -26,7 +26,7 @@ from pathlib import Path
 
 from app.db.database import SessionLocal, init_db
 from app.db.models import Contractor, LeadInsight
-from app.pipeline.enricher import ingest_contractors, run_research_enrichment
+from app.pipeline.enricher import ingest_contractors, run_research_enrichment, run_scoring_enrichment
 
 logging.basicConfig(
     level=logging.INFO,
@@ -74,6 +74,17 @@ def cmd_research(args):
         concurrency=args.concurrency,
     )
     _print_report(report)
+
+
+def cmd_score(args):
+    """Run OpenAI scoring on researched contractors."""
+    logger.info("Starting scoring enrichment...")
+    report = run_scoring_enrichment(
+        force=args.force,
+        limit=args.limit,
+        concurrency=args.concurrency,
+    )
+    _print_scoring_report(report)
 
 
 def cmd_status(args):
@@ -139,6 +150,29 @@ def _print_report(report):
     print()
 
 
+def _print_scoring_report(report):
+    """Pretty-print a BatchScoringReport."""
+    print(f"\n{'='*50}")
+    print(f"  Scoring Report")
+    print(f"{'='*50}")
+    print(f"  Total contractors:   {report.total}")
+    print(f"  Succeeded:           {report.succeeded}")
+    print(f"  Failed:              {report.failed}")
+    print(f"  Duration:            {report.total_duration_seconds:.1f}s")
+    print(f"{'='*50}")
+
+    if report.results:
+        print("\n  Details:")
+        for r in report.results:
+            if r.success:
+                biz = r.score_breakdown.get("business_signals", "?")
+                urg = r.score_breakdown.get("why_now_urgency", "?")
+                print(f"    {r.contractor_name}: score={r.lead_score} (biz={biz}, urgency={urg}) [{r.duration_seconds:.1f}s]")
+            else:
+                print(f"    {r.contractor_name}: FAIL: {r.error} [{r.duration_seconds:.1f}s]")
+    print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Roofing Lead Intelligence Pipeline CLI"
@@ -157,6 +191,12 @@ def main():
     research_parser.add_argument("--limit", type=int, default=None, help="Max contractors to process")
     research_parser.add_argument("--concurrency", type=int, default=3, help="Parallel API calls (default: 3)")
 
+    # score
+    score_parser = subparsers.add_parser("score", help="Run OpenAI scoring on researched contractors")
+    score_parser.add_argument("--force", action="store_true", help="Re-score all researched contractors")
+    score_parser.add_argument("--limit", type=int, default=None, help="Max contractors to process")
+    score_parser.add_argument("--concurrency", type=int, default=5, help="Parallel API calls (default: 5)")
+
     # status
     subparsers.add_parser("status", help="Show pipeline status")
 
@@ -166,6 +206,8 @@ def main():
         cmd_ingest(args)
     elif args.command == "research":
         cmd_research(args)
+    elif args.command == "score":
+        cmd_score(args)
     elif args.command == "status":
         cmd_status(args)
     else:

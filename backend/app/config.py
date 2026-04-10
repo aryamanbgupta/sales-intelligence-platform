@@ -21,11 +21,19 @@ PERPLEXITY_MAX_TOKENS = 4096
 PERPLEXITY_TEMPERATURE = 0.2
 
 # --- GAF Scraper Config ---
-GAF_BASE_URL = "https://www.gaf.com/en-us/roofing-contractors/residential"
+GAF_BASE_URLS = {
+    "residential": "https://www.gaf.com/en-us/roofing-contractors/residential",
+    "commercial": "https://www.gaf.com/en-us/roofing-contractors/commercial",
+}
+GAF_BASE_URL = GAF_BASE_URLS["residential"]  # default
 COVEO_API_URL = "https://platform.cloud.coveo.com/rest/search/v2"
 COVEO_ORG_ID = "gafmaterialscorporationproduction3yalqk12"
-COVEO_PIPELINE = "prod-gaf-recommended-residential-contractors"
 SCRAPER_RESULTS_PER_PAGE = 50           # max results per Coveo API call
+
+# --- OpenAI Scoring Config ---
+OPENAI_MODEL = "gpt-4o-mini"
+OPENAI_SCORING_MAX_TOKENS = 2048
+OPENAI_SCORING_TEMPERATURE = 0.3
 
 # --- Pipeline Config ---
 ENRICHMENT_BATCH_SIZE = 10              # contractors per batch
