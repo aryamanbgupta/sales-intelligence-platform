@@ -410,6 +410,209 @@ Contacts are deduplicated by `(contractor_id, full_name)`. Re-running extraction
 
 ---
 
+## REST API (FastAPI)
+
+### Architecture
+
+The API follows a three-tier pattern:
+
+```
+Routes (api/)  →  Service Layer (services/)  →  Database (db/)
+  leads.py           lead_service.py              models.py
+  pipeline.py                                     database.py
+```
+
+- **Routes** validate inputs (Pydantic schemas), call services, return responses
+- **Service layer** builds SQLAlchemy queries, handles filtering/sorting/pagination
+- **Database layer** provides the ORM models and session factory
+
+All route handlers are **sync `def`** (not `async def`). This is intentional — the pipeline enricher functions call `asyncio.run()` internally, which crashes if called from an async context (nested event loops). Sync handlers run in FastAPI's thread pool automatically, sidestepping the issue.
+
+### Starting the Server
+
+```bash
+cd backend
+uv run python main.py
+# Runs at http://localhost:8000 with hot reload
+# Interactive API docs at http://localhost:8000/docs
+```
+
+### Endpoints
+
+#### `GET /api/health`
+
+Health check. Returns `{"status": "ok"}`.
+
+#### `GET /api/leads`
+
+Paginated, filterable, sortable list of leads. Returns compact items (no heavy text fields like research_summary or draft_email).
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `page` | int (≥1) | 1 | Page number |
+| `per_page` | int (1–100) | 20 | Items per page |
+| `sort_by` | string | `lead_score` | Sort column: `lead_score`, `name`, `rating`, `review_count`, `certification`, `distance_miles` |
+| `sort_order` | string | `desc` | `asc` or `desc` |
+| `min_score` | int | — | Minimum lead score filter |
+| `max_score` | int | — | Maximum lead score filter |
+| `certification` | string | — | Exact match on certification tier |
+| `search` | string | — | Case-insensitive name search (ILIKE) |
+
+Response shape:
+```json
+{
+  "data": [
+    {
+      "id": 1, "name": "ABC Roofing", "city": "Brooklyn", "state": "NY",
+      "certification": "Master Elite", "rating": 4.8, "review_count": 127,
+      "lead_score": 72, "phone": "(718) 555-0100", "website": "https://...",
+      "image_url": "https://...", "distance_miles": 3.2, "years_in_business": 15
+    }
+  ],
+  "pagination": {
+    "page": 1, "per_page": 20, "total_items": 78, "total_pages": 4
+  }
+}
+```
+
+**Sort column whitelist** — the `sort_by` parameter is validated against a dict of allowed SQLAlchemy column objects (`_SORT_COLUMNS` in `lead_service.py`) to prevent SQL injection via dynamic column names.
+
+**NULL handling** — contractors without scores are sorted last when sorting by `lead_score` desc (via `nullslast()`).
+
+#### `GET /api/leads/{lead_id}`
+
+Full detail for a single lead, including nested insights and contacts.
+
+Response shape:
+```json
+{
+  "id": 1, "gaf_id": "1004859", "name": "ABC Roofing",
+  "city": "Brooklyn", "state": "NY", "phone": "...", "website": "...",
+  "insights": {
+    "lead_score": 72,
+    "score_breakdown": {"certification_tier": 25, "review_volume": 13, ...},
+    "research_summary": "Full research text...",
+    "citations": ["https://bbb.org/...", "https://..."],
+    "talking_points": ["Ask about storm season", ...],
+    "buying_signals": ["Expanding territory", ...],
+    "pain_points": ["Slow delivery times", ...],
+    "recommended_pitch": "Value proposition...",
+    "why_now": "Recent hailstorm in service area.",
+    "draft_email": "Subject: ...\n\nHi Frank, ..."
+  },
+  "contacts": [
+    {"full_name": "Frank N.", "title": "President", "email": null,
+     "phone": null, "linkedin_url": null, "source": "perplexity_research",
+     "confidence": "high"}
+  ]
+}
+```
+
+Returns 404 with `{"detail": "Lead not found"}` if the ID doesn't exist.
+
+#### `GET /api/stats`
+
+Dashboard aggregate statistics.
+
+Response shape:
+```json
+{
+  "total_leads": 78,
+  "avg_score": 52.3,
+  "high_priority_count": 12,
+  "certification_breakdown": {"Master Elite": 68, "President's Club": 11, ...},
+  "score_distribution": {"0-25": 5, "26-50": 20, "51-75": 35, "76-100": 18}
+}
+```
+
+`high_priority_count` = contractors with `lead_score >= 70`.
+
+#### `POST /api/pipeline/scrape`
+
+Triggers the GAF scraper. Blocks until complete (typically ~2-3 minutes).
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `zip_code` | string | `10013` | ZIP code to search |
+| `distance` | int (5–100) | `25` | Search radius in miles |
+
+Runs Phase 1 (Coveo listing scrape) then Phase 2 (profile detail scrape) and persists results.
+
+Response: `{"contractors_found": 76, "new": 76, "updated": 0}`
+
+#### `POST /api/pipeline/enrich`
+
+Runs all three enrichment stages sequentially: research → scoring → contacts.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `force` | bool | `false` | Re-enrich already-enriched contractors |
+| `limit` | int (≥1) | — | Max contractors to process per stage |
+
+Response:
+```json
+{
+  "research": {"total": 76, "succeeded": 76, "failed": 0, "duration_seconds": 310.5},
+  "scoring": {"total": 76, "succeeded": 76, "failed": 0, "duration_seconds": 45.2},
+  "contacts": {"total": 76, "succeeded": 72, "failed": 4, "contacts_found": 58, "duration_seconds": 38.1}
+}
+```
+
+#### `GET /api/pipeline/status`
+
+Pipeline health summary — how many contractors have been processed through each stage.
+
+Response:
+```json
+{
+  "total_contractors": 78,
+  "with_research": 78,
+  "with_scores": 78,
+  "with_contacts": 58,
+  "awaiting_research": 0,
+  "awaiting_scoring": 0,
+  "awaiting_contacts": 20
+}
+```
+
+### CORS
+
+The API allows requests from `http://localhost:3000` and `http://127.0.0.1:3000` (Next.js frontend dev server). Configured in `app/main.py` via FastAPI's `CORSMiddleware`.
+
+---
+
+## Test Suite
+
+### Running Tests
+
+```bash
+cd backend
+uv run pytest                  # Run all tests
+uv run pytest -v               # Verbose output
+uv run pytest tests/test_api.py  # Run only API tests
+```
+
+### Test Architecture
+
+**Service tests** (`test_lead_service.py`, 25 tests) — test the query helpers directly against an in-memory SQLite database with transaction-based rollback isolation via the `db_session` fixture in `conftest.py`.
+
+**API tests** (`test_api.py`, 19 tests) — test the full HTTP stack using FastAPI's `TestClient`. Uses `StaticPool` to share a single in-memory SQLite connection across all threads (FastAPI runs sync handlers in a thread pool, and each thread would normally get a separate in-memory database). The `get_session` dependency is overridden at module level, and tables are dropped/recreated per test via an `autouse` fixture.
+
+### Test Coverage
+
+| Area | Tests | What's Covered |
+|---|---|---|
+| Health check | 1 | `GET /api/health` returns 200 |
+| Lead listing | 10 | Pagination, sorting, filtering (score/certification/search), response shape, validation |
+| Lead detail | 3 | Full detail with insights+contacts, without insights, 404 |
+| Stats | 3 | Empty DB, aggregates, score distribution buckets |
+| Pipeline status | 2 | Empty DB, mixed pipeline progress |
+| `get_leads()` | 13 | All filter combos, sort directions, NULL score ordering, dict keys |
+| `get_lead_detail()` | 6 | Missing ID, basic fields, insights, contacts, empty states |
+| `get_stats()` | 6 | Empty DB, totals, averages, high priority, cert breakdown, score buckets |
+
+---
+
 ## Database Schema
 
 ### Table: `contractors`
@@ -540,7 +743,9 @@ Scheduler (cron)
 
 ```
 backend/
+  main.py                        # Uvicorn launcher (python main.py → starts API server)
   app/
+    main.py                      # FastAPI app: lifespan, CORS, router registration, health check
     config.py                    # All settings: API keys, URLs, rate limits
     db/
       database.py                # SQLAlchemy engine, session factory, init_db()
@@ -553,8 +758,16 @@ backend/
       contact_enrichment.py      # Contact extraction (provider-based, extensible)
       enricher.py                # Orchestrator (DB ↔ all engines)
       cli.py                     # CLI: ingest, research, score, contacts, status
-    api/                         # (placeholder for FastAPI endpoints)
-    services/                    # (placeholder for query helpers)
+    api/
+      schemas.py                 # Pydantic request/response models (11 schemas)
+      leads.py                   # GET /api/leads, /api/leads/{id}, /api/stats
+      pipeline.py                # POST /api/pipeline/scrape, /enrich; GET /status
+    services/
+      lead_service.py            # DB query helpers: filtering, sorting, pagination, stats
+  tests/
+    conftest.py                  # Shared fixtures: in-memory SQLite, session rollback
+    test_lead_service.py         # 25 tests for lead_service query functions
+    test_api.py                  # 19 tests for FastAPI endpoints (TestClient + StaticPool)
   data/
     leads.db                     # SQLite database (created on first run)
     sample_contractors.json      # Sample data for testing without the scraper
@@ -585,6 +798,11 @@ uv run python -m app.pipeline.cli contacts       # Stage 4: Contact extraction
 # 4. Check status
 uv run python -m app.pipeline.cli status
 
+# 5. Start the API server
+uv run python main.py
+# Server runs at http://localhost:8000
+# Interactive docs at http://localhost:8000/docs
+
 # Alternative: skip scraper, ingest sample data and run research
 uv run python -m app.pipeline.cli ingest data/sample_contractors.json --research
 ```
@@ -598,3 +816,5 @@ uv run python -m app.pipeline.cli ingest data/sample_contractors.json --research
 | `score` | OpenAI scoring on researched contractors | `--force` (re-score all), `--limit N`, `--concurrency N` (default 5) |
 | `contacts` | Extract decision-maker contacts from research | `--force` (re-extract all), `--limit N`, `--concurrency N` (default 5) |
 | `status` | Show pipeline progress summary | — |
+
+The CLI and REST API share the same database — you can use the CLI to run pipeline stages and the API to query/display results. The API also exposes `POST /api/pipeline/scrape` and `POST /api/pipeline/enrich` endpoints as alternatives to the CLI commands.
