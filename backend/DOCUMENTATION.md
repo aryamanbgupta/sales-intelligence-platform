@@ -2,24 +2,29 @@
 
 ## Overview
 
-The data pipeline collects and enriches roofing contractor leads in three stages:
+The data pipeline collects and enriches roofing contractor leads in four stages:
 
 1. **Scrape** — Pull contractor listings from GAF's public directory via Coveo API interception, then visit each profile page for additional details
-2. **Research** — Query Perplexity (sonar-pro) for web-sourced intelligence on each contractor: reputation, growth signals, supplier relationships, market context
-3. **Score** — *(next stage)* Feed scraped data + research into OpenAI to produce structured lead scores, talking points, and outreach drafts
+2. **Research** — Query Perplexity (sonar-pro) for web-sourced intelligence on each contractor: reputation, growth signals, supplier relationships, decision-makers
+3. **Score** — Feed scraped data + research into OpenAI to produce hybrid lead scores (deterministic + LLM), talking points, and outreach drafts
+4. **Contacts** — Extract decision-maker names and contact info from research text using OpenAI, with an extensible provider architecture for additional sources (Hunter.io, Apollo, etc.)
 
-Stages are decoupled. Each can be re-run independently — re-scrape without losing research, re-research without re-scraping, re-score without re-researching. All data is stored in SQLite at `backend/data/leads.db`.
+Stages are decoupled. Each can be re-run independently — re-scrape without losing research, re-research without re-scraping, re-score without re-researching, re-extract contacts without re-researching. All data is stored in SQLite at `backend/data/leads.db`.
 
 ```
-  GAF Website                   Perplexity API                  OpenAI API
-      │                              │                              │
-      ▼                              ▼                              ▼
-  ┌────────┐    contractors    ┌──────────┐    lead_insights   ┌──────────┐
-  │Scraper │───────────────▶   │Research  │───────────────▶    │ Scoring  │
-  │        │    table          │ Engine   │    table            │ (TBD)   │
-  └────────┘                   └──────────┘                    └──────────┘
-  Playwright +                  Async batch                     Structured
-  Coveo API                     w/ retries                      JSON output
+  GAF Website            Perplexity API            OpenAI API              OpenAI API
+      │                       │                        │                       │
+      ▼                       ▼                        ▼                       ▼
+  ┌────────┐  contractors ┌──────────┐ lead_insights ┌──────────┐ contacts ┌──────────┐
+  │Scraper │─────────────▶│Research  │──────────────▶│ Scoring  │         │ Contact  │
+  │        │    table      │ Engine   │    table       │ Engine   │         │Extractor │
+  └────────┘               └──────────┘               └──────────┘         └──────────┘
+  Playwright +              Async batch                Hybrid score          Provider-based
+  Coveo API                 w/ retries                 60 det + 40 LLM      architecture
+                                                            │                    ▲
+                                                            │    lead_insights   │
+                                                            └────────────────────┘
+                                                              (reads research text)
 ```
 
 ---
@@ -127,6 +132,7 @@ For each contractor, we send a comprehensive research query to the Perplexity AP
 
 | Research Area | What We're Looking For |
 |---|---|
+| **Decision Makers & Key Contacts** (HIGH PRIORITY) | Owner/president names from state business registrations, BBB, D&B, LinkedIn, company website, Google. Full name, title, source, direct email/phone, LinkedIn URL |
 | Online Reputation | Google review themes, BBB rating, Angi/HomeAdvisor/Yelp/Houzz ratings, press coverage |
 | Business Health & Growth | Company size, hiring activity, expansion signals, social media trends |
 | Website Analysis | Services featured, material brands mentioned, careers page, site quality (only when website URL available) |
@@ -134,16 +140,20 @@ For each contractor, we send a comprehensive research query to the Perplexity AP
 | Supplier & Material Intelligence | Current material suppliers, product lines used, delivery complaints, job volume, buying groups |
 | Competitive Positioning | Market position, differentiators, competitors, unique selling proposition |
 
+The **Decision Makers** section is the highest-priority research area — it directs Perplexity to search state Secretary of State records, BBB profiles, D&B business listings, LinkedIn, company websites, and Google for owner/officer names. Even partial results (name + title, no email) are valuable for the sales team's outreach. This research text feeds directly into Stage 4 (Contact Extraction) for structured parsing.
+
 The prompt adapts based on data availability — if we already know years in business, it doesn't ask; if no website is available, it asks Perplexity to search for one.
 
 ### Architecture
 
 ```
 app/pipeline/
-  prompts.py     # Prompt templates — system prompt + dynamic research prompt builder
-  research.py    # Perplexity API client — async batch processing, retries, rate limiting
-  enricher.py    # Orchestrator — connects research engine to the database
-  cli.py         # CLI entry point for all pipeline operations
+  prompts.py               # Prompt templates — Perplexity system/research + OpenAI scoring prompts
+  research.py              # Perplexity API client — async batch processing, retries, rate limiting
+  scoring.py               # OpenAI scoring engine — deterministic + LLM hybrid scoring
+  contact_enrichment.py    # Contact extraction — provider-based architecture (Perplexity extract, Hunter.io stub)
+  enricher.py              # Orchestrator — connects all engines to the database
+  cli.py                   # CLI entry point for all pipeline operations
 ```
 
 **Key design decisions:**
@@ -241,6 +251,165 @@ OPENAI_API_KEY=sk-your-key-here
 
 ---
 
+## Stage 3: OpenAI Scoring
+
+### How It Works
+
+Scoring uses a **hybrid deterministic + LLM approach** to produce a 0–100 lead score and actionable sales intelligence for each contractor.
+
+**Deterministic scoring (60/100 points)** — computed from structured data, no API call needed:
+
+| Factor | Max Points | How It's Scored |
+|---|---|---|
+| `certification_tier` | 30 | President's Club=30, Master Elite=25, Certified Plus=20, Certified=15, Uncertified=5 |
+| `review_volume` | 20 | Log-scale: 10 reviews≈7pts, 100≈13pts, 500+≈18-20pts. Proxy for job volume |
+| `rating_quality` | 10 | Star rating weighted by review confidence (confidence = min(1.0, review_count/50)) |
+
+**LLM scoring (40/100 points)** — scored by OpenAI from the Perplexity research text:
+
+| Factor | Max Points | What It Measures |
+|---|---|---|
+| `business_signals` | 20 | Growth evidence: hiring, expansion, new equipment, revenue trends. 0 if no evidence, 15+ requires concrete data |
+| `why_now_urgency` | 20 | Time-sensitive triggers: recent storms, supplier problems, rapid growth outpacing supply chain. 15+ requires imminent, documented triggers |
+
+**Final score** = `certification_tier + review_volume + rating_quality + business_signals + why_now_urgency`
+
+The deterministic subtotal is passed to OpenAI as locked scores — the LLM cannot modify them. The pipeline enforces correct arithmetic server-side (clamps LLM scores to 0–20 range, recomputes the sum rather than trusting the LLM's addition).
+
+### Sales Intelligence Outputs
+
+Beyond the score, OpenAI generates structured sales intelligence for each contractor:
+
+| Output | Description |
+|---|---|
+| `talking_points` | 3–5 specific, actionable conversation starters referencing concrete data |
+| `buying_signals` | 2–4 indicators the contractor may need a new/better materials supplier |
+| `pain_points` | 2–4 problems the distributor could solve |
+| `recommended_pitch` | 2–3 sentence value proposition tailored to this specific contractor |
+| `why_now` | Time-sensitive reason to call this week (or "No immediate urgency" if none) |
+| `draft_email` | 150–200 word cold outreach email with Subject line, personalized with findings |
+
+### Running Scoring
+
+```bash
+cd backend
+
+# Score all researched but unscored contractors
+uv run python -m app.pipeline.cli score
+
+# Force re-score all researched contractors
+uv run python -m app.pipeline.cli score --force
+
+# Score with higher concurrency
+uv run python -m app.pipeline.cli score --concurrency 10
+
+# Score a limited batch
+uv run python -m app.pipeline.cli score --limit 10
+```
+
+### Configuration
+
+```python
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = "gpt-4o-mini"                # fast + cheap for structured extraction
+OPENAI_SCORING_MAX_TOKENS = 2048
+OPENAI_SCORING_TEMPERATURE = 0.3
+```
+
+---
+
+## Stage 4: Contact Extraction
+
+### How It Works
+
+The sales team needs to know **who to call** at each contractor. Contact extraction parses the Perplexity research text (which already contains decision-maker information from Stage 2) into structured contact records using a lightweight OpenAI call.
+
+For each contractor with research:
+1. Load the research text from `lead_insights.research_summary`
+2. Send it to OpenAI (`gpt-4o-mini`, temperature=0.1, JSON mode) with a prompt asking it to extract all mentioned people and their roles
+3. Parse the structured JSON response into `Contact` records
+4. Persist to the `contacts` table with name-based deduplication
+
+### What Gets Extracted
+
+For each person found in the research text:
+
+| Field | Description | Example |
+|---|---|---|
+| `full_name` | Full name | "Frank Notarnicola" |
+| `title` | Role/title at the company | "President", "Owner", "Operations Manager" |
+| `email` | Direct email (only if explicitly stated in research) | "frank@example.com" |
+| `phone` | Direct phone (only if different from company phone) | "(555) 123-4567" |
+| `linkedin_url` | LinkedIn profile URL (only if found) | "https://linkedin.com/in/..." |
+| `source` | Where the info was found | "NY Secretary of State", "BBB profile", "D&B listing" |
+| `confidence` | Reliability level | "high" (state records, BBB, D&B), "medium" (website, reviews), "low" (inferred) |
+
+### Running Contact Extraction
+
+```bash
+cd backend
+
+# Extract contacts for all researched contractors that don't have contacts yet
+uv run python -m app.pipeline.cli contacts
+
+# Force re-extract for ALL researched contractors (dedupes, doesn't replace)
+uv run python -m app.pipeline.cli contacts --force
+
+# Limit to a batch
+uv run python -m app.pipeline.cli contacts --limit 10
+```
+
+### Extensible Provider Architecture
+
+Contact extraction uses a **provider-based design** that makes it straightforward to add new data sources beyond Perplexity research parsing.
+
+```
+contact_enrichment.py
+  ├── extract_contacts_from_research()   ← ACTIVE: parses existing research text
+  ├── find_contacts_hunter()             ← STUB: Hunter.io email lookup by domain
+  ├── find_contacts_apollo()             ← FUTURE: Apollo.io contact enrichment
+  └── PROVIDER_REGISTRY                  ← Registry mapping provider keys to functions
+```
+
+**Current providers:**
+
+| Provider | Status | How It Works | Cost |
+|---|---|---|---|
+| `perplexity_extract` | Active | OpenAI parses research text for contacts | ~$0.001/contractor (gpt-4o-mini) |
+| `hunter_io` | Stub (ready to plug in) | Email lookup by company domain via Hunter.io API | Free tier: 25/mo, paid from $49/mo |
+| `apollo` | Placeholder | Contact enrichment via Apollo.io | TBD |
+| `rocketreach` | Placeholder | Contact enrichment via RocketReach | TBD |
+
+**To add a new provider:**
+
+1. Write an async function matching the signature:
+   ```python
+   async def find_contacts_<provider>(
+       client: AsyncOpenAI,  # or httpx.AsyncClient
+       contractor: dict,
+       research_text: str,
+   ) -> ContactExtractionResult:
+   ```
+2. Add it to `PROVIDER_REGISTRY` in `contact_enrichment.py`:
+   ```python
+   PROVIDER_REGISTRY = {
+       "perplexity_extract": "extract_contacts_from_research",
+       "hunter_io": "find_contacts_hunter",        # ← uncomment
+   }
+   ```
+3. Pass the provider key when calling `run_contact_extraction()`
+
+The Hunter.io stub includes a complete implementation example in comments — just add an API key and uncomment.
+
+### Deduplication
+
+Contacts are deduplicated by `(contractor_id, full_name)`. Re-running extraction with `--force`:
+- **Skips** contacts that already exist by name
+- **Enriches** existing contacts with newly found info (e.g., adds an email to a record that previously only had name + title)
+- **Never deletes** existing contacts
+
+---
+
 ## Database Schema
 
 ### Table: `contractors`
@@ -276,7 +445,7 @@ Populated by the scraper. One row per contractor, deduped by `gaf_id`.
 
 ### Table: `lead_insights`
 
-Populated by the research engine (and later, the scoring stage). One row per contractor (FK to `contractors.id`, UNIQUE constraint).
+Populated by Stage 2 (Research) and Stage 3 (Scoring). One row per contractor (FK to `contractors.id`, UNIQUE constraint).
 
 | Column | Type | Populated By | Description |
 |---|---|---|---|
@@ -284,17 +453,37 @@ Populated by the research engine (and later, the scoring stage). One row per con
 | `contractor_id` | INTEGER FK UNIQUE | Research | References `contractors.id` |
 | `research_summary` | TEXT | Research | Perplexity research output (full text) |
 | `citations` | TEXT (JSON) | Research | Array of source URLs from Perplexity |
-| `lead_score` | INTEGER | Scoring | 0–100 composite score |
-| `score_breakdown` | TEXT (JSON) | Scoring | `{certification: 25, reviews: 18, ...}` |
-| `talking_points` | TEXT (JSON) | Scoring | Array of sales talking points |
-| `buying_signals` | TEXT (JSON) | Scoring | Array of buying signals |
-| `pain_points` | TEXT (JSON) | Scoring | Array of pain points |
-| `recommended_pitch` | TEXT | Scoring | Suggested pitch text |
-| `why_now` | TEXT | Scoring | Time-sensitive signal |
-| `draft_email` | TEXT | Scoring | Generated outreach email |
+| `lead_score` | INTEGER | Scoring | 0–100 composite score (deterministic + LLM) |
+| `score_breakdown` | TEXT (JSON) | Scoring | `{certification_tier: 25, review_volume: 13, rating_quality: 8, business_signals: 10, why_now_urgency: 5}` |
+| `talking_points` | TEXT (JSON) | Scoring | Array of specific, actionable conversation starters |
+| `buying_signals` | TEXT (JSON) | Scoring | Array of indicators contractor needs new supplier |
+| `pain_points` | TEXT (JSON) | Scoring | Array of problems the distributor could solve |
+| `recommended_pitch` | TEXT | Scoring | Tailored value proposition (2–3 sentences) |
+| `why_now` | TEXT | Scoring | Time-sensitive call trigger |
+| `draft_email` | TEXT | Scoring | 150–200 word personalized cold outreach email |
 | `enriched_at` | DATETIME | Research | When enrichment last ran |
 | `created_at` | DATETIME | DB | Row creation time |
 | `updated_at` | DATETIME | DB | Last update time |
+
+### Table: `contacts`
+
+Populated by Stage 4 (Contact Extraction). Multiple rows per contractor allowed (e.g., owner + ops manager).
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | INTEGER PK | Auto-increment |
+| `contractor_id` | INTEGER FK (indexed) | References `contractors.id` |
+| `full_name` | TEXT | Person's full name |
+| `title` | TEXT | Role at the company (Owner, President, VP, etc.) |
+| `email` | TEXT | Direct email address (if publicly available) |
+| `phone` | TEXT | Direct phone (if different from company phone) |
+| `linkedin_url` | TEXT | LinkedIn profile URL |
+| `source` | TEXT NOT NULL | Provider that found this contact ("perplexity_research", "hunter_io", "manual") |
+| `confidence` | TEXT | "high", "medium", or "low" |
+| `created_at` | DATETIME | Row creation time |
+| `updated_at` | DATETIME | Last update time |
+
+**Relationships:** `Contractor.contacts` is a one-to-many relationship. A contractor can have zero or many contacts. Contacts are deduplicated by `(contractor_id, full_name)`.
 
 ---
 
@@ -335,11 +524,14 @@ com = await scrape_contractors(zip_code="10013", contractor_type="commercial")
 ```
 Scheduler (cron)
   → Celery + Redis task queue
-    → Worker 1: scrape("10013", 50) → store → scrape profiles → research
-    → Worker 2: scrape("90210", 50) → store → scrape profiles → research
+    → Worker 1: scrape("10013", 50) → store → scrape profiles
+    → Worker 2: scrape("90210", 50) → store → scrape profiles
     → ...
   → All results land in shared Postgres
+  → Research pipeline picks up new contractors
   → Scoring pipeline picks up newly researched contractors
+  → Contact extraction runs on newly researched contractors
+  → Hunter.io / Apollo enrichment for high-score leads (cost-efficient targeting)
 ```
 
 ---
@@ -352,13 +544,15 @@ backend/
     config.py                    # All settings: API keys, URLs, rate limits
     db/
       database.py                # SQLAlchemy engine, session factory, init_db()
-      models.py                  # Contractor + LeadInsight ORM models
+      models.py                  # Contractor, LeadInsight, Contact ORM models
     pipeline/
       scraper.py                 # GAF scraper (Coveo interception + profile pages)
-      prompts.py                 # Perplexity prompt templates
+      prompts.py                 # Prompt templates — Perplexity research + OpenAI scoring
       research.py                # Perplexity API client (async batch, retries)
-      enricher.py                # Orchestrator (DB ↔ research engine)
-      cli.py                     # CLI: ingest, research, status commands
+      scoring.py                 # OpenAI scoring engine (deterministic + LLM hybrid)
+      contact_enrichment.py      # Contact extraction (provider-based, extensible)
+      enricher.py                # Orchestrator (DB ↔ all engines)
+      cli.py                     # CLI: ingest, research, score, contacts, status
     api/                         # (placeholder for FastAPI endpoints)
     services/                    # (placeholder for query helpers)
   data/
@@ -378,17 +572,29 @@ cd backend
 
 # 1. Set up environment
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env with your PERPLEXITY_API_KEY and OPENAI_API_KEY
 
 # 2. Run the scraper (requires Playwright browsers installed)
 uv run python -m app.pipeline.scraper
 
-# 3. Run Perplexity research on all scraped contractors
-uv run python -m app.pipeline.cli research
+# 3. Run the full enrichment pipeline
+uv run python -m app.pipeline.cli research      # Stage 2: Perplexity research
+uv run python -m app.pipeline.cli score          # Stage 3: OpenAI scoring
+uv run python -m app.pipeline.cli contacts       # Stage 4: Contact extraction
 
 # 4. Check status
 uv run python -m app.pipeline.cli status
 
-# Alternative: skip scraper, ingest sample data and research it
+# Alternative: skip scraper, ingest sample data and run research
 uv run python -m app.pipeline.cli ingest data/sample_contractors.json --research
 ```
+
+### CLI Commands Reference
+
+| Command | Description | Key Flags |
+|---|---|---|
+| `ingest <file>` | Import contractors from JSON | `--research` (auto-run research after), `--concurrency N` |
+| `research` | Perplexity research on unenriched contractors | `--force` (re-research all), `--limit N`, `--concurrency N` (default 3) |
+| `score` | OpenAI scoring on researched contractors | `--force` (re-score all), `--limit N`, `--concurrency N` (default 5) |
+| `contacts` | Extract decision-maker contacts from research | `--force` (re-extract all), `--limit N`, `--concurrency N` (default 5) |
+| `status` | Show pipeline progress summary | — |

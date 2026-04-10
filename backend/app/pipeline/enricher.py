@@ -1,5 +1,5 @@
 """
-Enrichment orchestrator — connects research and scoring engines to the database.
+Enrichment orchestrator — connects research, scoring, and contact engines to the database.
 
 Responsibilities:
     1. Query the DB for contractors that need enrichment
@@ -7,6 +7,8 @@ Responsibilities:
     3. Persist research results back to lead_insights
     4. Run OpenAI scoring (Stage 2) on researched contractors
     5. Persist scoring results back to lead_insights
+    6. Extract decision-maker contacts from research text
+    7. Persist contacts to the contacts table
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal, init_db
-from app.db.models import Contractor, LeadInsight
+from app.db.models import Contact, Contractor, LeadInsight
 from app.pipeline.research import (
     BatchResearchReport,
     ResearchResult,
@@ -29,6 +31,12 @@ from app.pipeline.scoring import (
     BatchScoringReport,
     ScoringResult,
     score_batch_sync,
+)
+from app.pipeline.contact_enrichment import (
+    BatchContactReport,
+    ContactExtractionResult,
+    ContactInfo,
+    run_contact_extraction_sync,
 )
 
 logger = logging.getLogger(__name__)
@@ -318,6 +326,144 @@ def run_scoring_enrichment(
         logger.info(
             f"Scoring enrichment complete: {persisted} persisted, "
             f"{report.failed} failed, {report.total_duration_seconds:.1f}s total"
+        )
+
+        return report
+
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
+# Stage 3: Contact Extraction
+# ---------------------------------------------------------------------------
+
+
+def get_contractors_without_contacts(
+    session: Session,
+    limit: int | None = None,
+) -> list[Contractor]:
+    """Find contractors that have research but no contacts yet."""
+    query = (
+        session.query(Contractor)
+        .join(LeadInsight, Contractor.id == LeadInsight.contractor_id)
+        .filter(LeadInsight.research_summary.isnot(None))
+        .filter(LeadInsight.research_summary != "")
+        .filter(~Contractor.id.in_(
+            session.query(Contact.contractor_id).distinct()
+        ))
+    )
+    if limit:
+        query = query.limit(limit)
+    return query.all()
+
+
+def persist_contact_result(
+    session: Session,
+    result: ContactExtractionResult,
+) -> int:
+    """Write extracted contacts to the contacts table.
+
+    Returns number of contacts persisted.
+    """
+    if not result.success or not result.contacts:
+        return 0
+
+    persisted = 0
+    for contact in result.contacts:
+        # Dedupe: skip if same name+contractor already exists
+        existing = (
+            session.query(Contact)
+            .filter(Contact.contractor_id == result.contractor_id)
+            .filter(Contact.full_name == contact.full_name)
+            .first()
+        )
+        if existing:
+            # Update with any new info
+            if contact.title and not existing.title:
+                existing.title = contact.title
+            if contact.email and not existing.email:
+                existing.email = contact.email
+            if contact.phone and not existing.phone:
+                existing.phone = contact.phone
+            if contact.linkedin_url and not existing.linkedin_url:
+                existing.linkedin_url = contact.linkedin_url
+            existing.updated_at = datetime.now(timezone.utc)
+        else:
+            new_contact = Contact(
+                contractor_id=result.contractor_id,
+                full_name=contact.full_name,
+                title=contact.title,
+                email=contact.email,
+                phone=contact.phone,
+                linkedin_url=contact.linkedin_url,
+                source=contact.source or "perplexity_research",
+                confidence=contact.confidence or "medium",
+            )
+            session.add(new_contact)
+            persisted += 1
+
+    session.commit()
+    return persisted
+
+
+def run_contact_enrichment(
+    force: bool = False,
+    limit: int | None = None,
+    concurrency: int = 5,
+) -> BatchContactReport:
+    """Main entry point: extract contacts for researched contractors.
+
+    Args:
+        force: If True, re-extract for ALL researched contractors
+               (existing contacts are deduped, not replaced).
+        limit: Max contractors to process.
+        concurrency: Parallel OpenAI calls.
+
+    Returns:
+        BatchContactReport with summary stats.
+    """
+    init_db()
+    session = SessionLocal()
+
+    try:
+        if force:
+            contractors = get_researched_contractors(session, limit=limit)
+        else:
+            contractors = get_contractors_without_contacts(session, limit=limit)
+
+        if not contractors:
+            logger.info("No contractors need contact extraction.")
+            return BatchContactReport()
+
+        logger.info(f"Starting contact extraction for {len(contractors)} contractors...")
+
+        contractor_ids = [c.id for c in contractors]
+        research_map = build_research_map(session, contractor_ids)
+        contractor_dicts = [c.to_dict() for c in contractors]
+
+        def _on_progress(result: ContactExtractionResult, completed: int, total: int):
+            count = len(result.contacts) if result.success else 0
+            status = f"{count} contacts" if result.success else f"FAILED: {result.error}"
+            logger.info(f"  [{completed}/{total}] {result.contractor_name}: {status}")
+
+        report = run_contact_extraction_sync(
+            contractor_dicts,
+            research_map=research_map,
+            concurrency=concurrency,
+            on_progress=_on_progress,
+        )
+
+        # Persist
+        total_persisted = 0
+        for result in report.results:
+            if result.success:
+                total_persisted += persist_contact_result(session, result)
+
+        logger.info(
+            f"Contact extraction complete: {total_persisted} new contacts persisted, "
+            f"{report.total_contacts_found} total found, "
+            f"{report.total_duration_seconds:.1f}s"
         )
 
         return report

@@ -109,14 +109,39 @@ Research the roofing contractor "{name}" based in {location}.
 We need you to find ADDITIONAL intelligence from other web sources. \
 Focus on the sections below.
 
-## 1. Online Reputation Deep Dive
+## 1. Decision Makers & Key Contacts (HIGH PRIORITY)
+Our sales team needs to know WHO to contact. Find names, titles, and any \
+direct contact info for people who make purchasing decisions at this company.
+
+Search these sources:
+- **State business registrations**: Check {state} Secretary of State / Division \
+of Corporations for registered agent, officers, or principals (e.g., \
+NY DOS entity search, NJ DARA business records)
+- **BBB profile**: Often lists owner/principal name
+- **D&B / Dun & Bradstreet**: Business lookup for company officers
+- **LinkedIn**: Search for people who list "{name}" as their employer — \
+look for Owner, President, VP, Operations Manager, Purchasing Manager
+- **Company website**: Check "About Us", "Our Team", or "Contact" pages
+- **Google**: Search "{name} owner" or "{name} president" + city
+
+For each person found, report:
+- Full name
+- Title / role
+- Source where you found them
+- Any direct email or phone if publicly listed
+- LinkedIn profile URL if found
+
+Even partial info is valuable — a name + title with no email is still \
+useful for the sales team. List EVERY person you can find.
+
+## 2. Online Reputation Deep Dive
 - Google Reviews: What are the top 3 recurring themes in positive reviews? \
 Any recurring complaints? Quote specific review snippets if possible.
 - BBB: What is their rating? Any filed complaints or resolved disputes?
 - Presence on Angi, HomeAdvisor, Yelp, Houzz — and ratings on each.
 - Any notable press coverage, awards, or public complaints?
 
-## 2. Business Health & Growth Signals
+## 3. Business Health & Growth Signals
 {years_directive}
 - Estimated company size (employees, trucks, crews) — check LinkedIn, \
 job boards, fleet registrations
@@ -126,13 +151,13 @@ job boards, fleet registrations
 - Any recent awards, recognitions, or new certifications?
 {website_directive}
 
-## 3. Market & Weather Context
+## 4. Market & Weather Context
 - Any severe weather events (hail, storms, wind damage) in the \
 {city}, {state} area in the last 6 months?
 - Current roofing demand conditions in the NYC metro / tri-state market
 - Upcoming seasonal demand patterns
 
-## 4. Supplier & Material Intelligence (MOST IMPORTANT FOR OUR PURPOSES)
+## 5. Supplier & Material Intelligence (MOST IMPORTANT FOR OUR PURPOSES)
 - Do they mention ANY current material suppliers or distributor \
 relationships (on their site, in reviews, in press)?
 - Do Google reviews or complaints mention material quality, delivery \
@@ -142,7 +167,7 @@ delays, or product availability issues?
 - Any indication of their monthly/annual job volume?
 - Are they part of any buying groups or co-ops?
 
-## 5. Competitive Positioning
+## 6. Competitive Positioning
 - How do they position themselves? (premium quality, low price, fast \
 turnaround, customer service, etc.)
 - Who are their main competitors in the {city} area?

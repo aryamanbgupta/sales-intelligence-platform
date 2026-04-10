@@ -2,19 +2,27 @@
 CLI entry point for the enrichment pipeline.
 
 Usage:
-    # Ingest contractors from a JSON file and run research
-    uv run python -m app.pipeline.cli ingest data/sample_contractors.json --research
-
-    # Run research on all unenriched contractors in the DB
-    uv run python -m app.pipeline.cli research
-
-    # Force re-research all contractors
-    uv run python -m app.pipeline.cli research --force
-
-    # Just ingest data without running research
+    # Ingest contractors from a JSON file
     uv run python -m app.pipeline.cli ingest data/sample_contractors.json
 
-    # Show current DB stats
+    # Ingest and immediately run research
+    uv run python -m app.pipeline.cli ingest data/sample_contractors.json --research
+
+    # Stage 1: Run Perplexity research on unenriched contractors
+    uv run python -m app.pipeline.cli research
+    uv run python -m app.pipeline.cli research --force        # re-research all
+    uv run python -m app.pipeline.cli research --limit 10     # first 10 only
+
+    # Stage 2: Run OpenAI scoring on researched contractors
+    uv run python -m app.pipeline.cli score
+    uv run python -m app.pipeline.cli score --force           # re-score all
+    uv run python -m app.pipeline.cli score --limit 5         # first 5 only
+
+    # Stage 3: Extract decision-maker contacts from research text
+    uv run python -m app.pipeline.cli contacts
+    uv run python -m app.pipeline.cli contacts --force        # re-extract all
+
+    # Show current pipeline status
     uv run python -m app.pipeline.cli status
 """
 
@@ -25,8 +33,13 @@ import sys
 from pathlib import Path
 
 from app.db.database import SessionLocal, init_db
-from app.db.models import Contractor, LeadInsight
-from app.pipeline.enricher import ingest_contractors, run_research_enrichment, run_scoring_enrichment
+from app.db.models import Contact, Contractor, LeadInsight
+from app.pipeline.enricher import (
+    ingest_contractors,
+    run_contact_enrichment,
+    run_research_enrichment,
+    run_scoring_enrichment,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -87,6 +100,17 @@ def cmd_score(args):
     _print_scoring_report(report)
 
 
+def cmd_contacts(args):
+    """Extract decision-maker contacts from research text."""
+    logger.info("Starting contact extraction...")
+    report = run_contact_enrichment(
+        force=args.force,
+        limit=args.limit,
+        concurrency=args.concurrency,
+    )
+    _print_contacts_report(report)
+
+
 def cmd_status(args):
     """Show current database status."""
     init_db()
@@ -105,6 +129,12 @@ def cmd_status(args):
             .filter(LeadInsight.lead_score.isnot(None))
             .count()
         )
+        total_contacts = session.query(Contact).count()
+        contractors_with_contacts = (
+            session.query(Contact.contractor_id)
+            .distinct()
+            .count()
+        )
 
         print(f"\n{'='*50}")
         print(f"  Pipeline Status")
@@ -112,8 +142,10 @@ def cmd_status(args):
         print(f"  Contractors in DB:     {total_contractors}")
         print(f"  With research:         {researched}")
         print(f"  With lead scores:      {scored}")
+        print(f"  With contacts:         {contractors_with_contacts} ({total_contacts} total contacts)")
         print(f"  Awaiting research:     {total_contractors - researched}")
         print(f"  Awaiting scoring:      {researched - scored}")
+        print(f"  Awaiting contacts:     {researched - contractors_with_contacts}")
         print(f"{'='*50}\n")
 
         # Show a few contractors
@@ -173,6 +205,31 @@ def _print_scoring_report(report):
     print()
 
 
+def _print_contacts_report(report):
+    """Pretty-print a BatchContactReport."""
+    print(f"\n{'='*50}")
+    print(f"  Contact Extraction Report")
+    print(f"{'='*50}")
+    print(f"  Total contractors:   {report.total}")
+    print(f"  Succeeded:           {report.succeeded}")
+    print(f"  Failed:              {report.failed}")
+    print(f"  Contacts found:      {report.total_contacts_found}")
+    print(f"  Duration:            {report.total_duration_seconds:.1f}s")
+    print(f"{'='*50}")
+
+    if report.results:
+        print("\n  Details:")
+        for r in report.results:
+            if r.success and r.contacts:
+                names = ", ".join(f"{c.full_name} ({c.title})" if c.title else c.full_name for c in r.contacts)
+                print(f"    {r.contractor_name}: {len(r.contacts)} contacts — {names}")
+            elif r.success:
+                print(f"    {r.contractor_name}: no contacts found")
+            else:
+                print(f"    {r.contractor_name}: FAIL: {r.error}")
+    print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Roofing Lead Intelligence Pipeline CLI"
@@ -197,6 +254,12 @@ def main():
     score_parser.add_argument("--limit", type=int, default=None, help="Max contractors to process")
     score_parser.add_argument("--concurrency", type=int, default=5, help="Parallel API calls (default: 5)")
 
+    # contacts
+    contacts_parser = subparsers.add_parser("contacts", help="Extract decision-maker contacts from research")
+    contacts_parser.add_argument("--force", action="store_true", help="Re-extract for all researched contractors")
+    contacts_parser.add_argument("--limit", type=int, default=None, help="Max contractors to process")
+    contacts_parser.add_argument("--concurrency", type=int, default=5, help="Parallel API calls (default: 5)")
+
     # status
     subparsers.add_parser("status", help="Show pipeline status")
 
@@ -208,6 +271,8 @@ def main():
         cmd_research(args)
     elif args.command == "score":
         cmd_score(args)
+    elif args.command == "contacts":
+        cmd_contacts(args)
     elif args.command == "status":
         cmd_status(args)
     else:

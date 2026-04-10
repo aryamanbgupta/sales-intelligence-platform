@@ -60,6 +60,10 @@ def patch_db(db_engine, monkeypatch):
     monkeypatch.setattr("app.db.database.init_db", lambda: None)
     monkeypatch.setattr("app.db.database.engine", db_engine)
 
+    # enricher.py imports SessionLocal/init_db at module level, so patch there too
+    monkeypatch.setattr("app.pipeline.enricher.SessionLocal", TestSession)
+    monkeypatch.setattr("app.pipeline.enricher.init_db", lambda: None)
+
     return TestSession
 
 

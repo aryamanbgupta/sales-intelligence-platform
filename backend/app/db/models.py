@@ -50,8 +50,9 @@ class Contractor(Base):
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
-    # Relationship to insights
+    # Relationships
     insights = relationship("LeadInsight", back_populates="contractor", uselist=False)
+    contacts = relationship("Contact", back_populates="contractor")
 
     @staticmethod
     def generate_gaf_id(name: str, address: str) -> str:
@@ -144,4 +145,45 @@ class LeadInsight(Base):
             "why_now": self.why_now,
             "draft_email": self.draft_email,
             "enriched_at": self.enriched_at.isoformat() if self.enriched_at else None,
+        }
+
+
+class Contact(Base):
+    """Decision-maker / key contact for a contractor.
+
+    Multiple contacts per contractor are allowed (e.g., owner + ops manager).
+    Populated by contact enrichment providers (Perplexity extraction, Hunter.io, etc.)
+    """
+
+    __tablename__ = "contacts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    contractor_id = Column(Integer, ForeignKey("contractors.id"), nullable=False, index=True)
+
+    full_name = Column(Text)              # "Frank Notarnicola"
+    title = Column(Text)                  # "Owner", "President", "Operations Manager"
+    email = Column(Text)                  # direct email
+    phone = Column(Text)                  # direct phone (if different from company)
+    linkedin_url = Column(Text)           # LinkedIn profile URL
+
+    source = Column(Text, nullable=False) # "perplexity_research", "hunter_io", "manual"
+    confidence = Column(Text)             # "high", "medium", "low"
+
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+    # Relationship back to contractor
+    contractor = relationship("Contractor", back_populates="contacts")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "contractor_id": self.contractor_id,
+            "full_name": self.full_name,
+            "title": self.title,
+            "email": self.email,
+            "phone": self.phone,
+            "linkedin_url": self.linkedin_url,
+            "source": self.source,
+            "confidence": self.confidence,
         }
