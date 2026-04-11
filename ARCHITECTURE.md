@@ -408,7 +408,7 @@ The API layer is organized into three tiers:
 
 2. **Service layer** (`lead_service.py`): Isolates SQLAlchemy query logic from route handlers. Three functions: `get_leads()` (filtering, sorting with NULL-safe ordering, pagination), `get_lead_detail()` (eager-loaded relationships), `get_stats()` (aggregation with CASE WHEN bucketing). All accept a `Session` parameter injected via `Depends(get_session)`.
 
-3. **Routers** (`leads.py`, `pipeline.py`): Thin handlers that validate inputs via `Query()` constraints, call the service or pipeline layer, and return Pydantic models.
+3. **Routers** (`leads.py`, `pipeline.py`, `chat.py`): Thin handlers that validate inputs via `Query()` constraints, call the service or pipeline layer, and return Pydantic models. The chat router delegates to `chat_service.py` which runs the agentic loop.
 
 **Key decisions:**
 - **All handlers are sync `def`** (not `async def`): The enricher functions call `asyncio.run()` internally. Calling them from an `async def` handler would crash (nested event loops). FastAPI runs sync handlers in a thread pool automatically, which avoids this issue.
@@ -521,7 +521,7 @@ The frontend mirrors InstaLILY AI's brand aesthetic: industrial, editorial, deli
 └──────────────────────────────────────────────────────────────┘
 ```
 
-**Component architecture (25 files):**
+**Component architecture (26 files):**
 
 | Layer | Components | Pattern |
 |-------|-----------|---------|
@@ -529,6 +529,7 @@ The frontend mirrors InstaLILY AI's brand aesthetic: industrial, editorial, deli
 | `ui/` (5) | ScorePill, CertBadge, StarRating, ProgressBar, CopyButton | Reusable primitives, monospace styling |
 | `dashboard/` (4) | StatsBar, FilterBar, LeadTable, LeadRow | Client components, URL state sync |
 | `lead-detail/` (8) | LeadHeader, ContactCard, WhyNowBanner, TalkingPoints, ScoreBreakdown, InsightsGrid, DraftEmail, ResearchSummary | Presentational, receive props |
+| `chat/` (1) | ChatPanel | Floating agentic chat with markdown rendering, mounted globally in layout |
 | `app/` (4) | layout, globals.css, page (dashboard), leads/[id]/page (detail) | App shell + route pages |
 
 **Key decisions:**
@@ -573,7 +574,18 @@ The frontend mirrors InstaLILY AI's brand aesthetic: industrial, editorial, deli
    POST /api/pipeline/enrich → run_research → run_scoring → run_contacts
    GET /api/pipeline/status → count contractors/researched/scored/contacts
 
-6. DISPLAY (Next.js frontend on :3000)
+6. CHAT (chat_service.py — agentic loop)
+   User message + history → POST /api/chat
+   → OpenAI gpt-4o-mini with 4 function-calling tools:
+     search_leads(search, min_score, max_score, certification, sort_by, ...)
+     get_lead_detail(lead_id)
+     get_stats()
+     compare_leads(lead_ids)
+   → LLM selects tool(s) → execute against DB → feed results back → repeat
+   → Final markdown response (capped at 5 tool-call rounds)
+   → { response: "..." }
+
+7. DISPLAY (Next.js frontend on :3000)
    Dashboard page (client component) → fetch /api/leads with URL-synced filters
      → StatsBar (4 metric cells) + FilterBar (score tier pills + cert pills + search)
      → LeadTable (sortable columns, paginated rows with ScorePill + CertBadge inline + Est. Volume)
@@ -584,6 +596,10 @@ The frontend mirrors InstaLILY AI's brand aesthetic: industrial, editorial, deli
      → InsightsGrid (buying signals + pain points)
      → DraftEmail (dark card with copy button)
      → ResearchSummary (collapsible) + citation source pills
+   Chat panel (client component, mounted in layout — available on all pages)
+     → ChatPanel: floating bottom-right toggle, message history, markdown rendering
+     → POST /api/chat with message + conversation history
+     → Renders assistant responses with react-markdown (headings, lists, links, bold)
 ```
 
 ---
@@ -642,8 +658,40 @@ Comprehensive test coverage across the full backend:
 
 Run with: `cd backend && uv run pytest -v`
 
+### Agentic Chat — "Sales Intelligence Agent"
+A conversational AI assistant embedded in the dashboard that lets sales reps query their leads using natural language. Built with OpenAI's function-calling API in a multi-turn agentic loop.
+
+**How it works:**
+1. User sends a message (e.g., "Compare Grapevine Pro and One Call Construction")
+2. Backend sends the message + conversation history to OpenAI with 4 tool definitions
+3. OpenAI decides which tool(s) to call and with what arguments
+4. Backend executes the tool(s) against the SQLite database via existing `lead_service` functions
+5. Tool results are fed back to OpenAI as context
+6. Steps 3-5 repeat until OpenAI produces a final text answer (capped at 5 rounds)
+7. Response is returned as markdown and rendered in the chat panel
+
+**Tools available to the agent:**
+
+| Tool | Wraps | Description |
+|------|-------|-------------|
+| `search_leads` | `lead_service.get_leads()` | Filter/sort leads by name, score range, certification, with pagination (max 20 per page) |
+| `get_lead_detail` | `lead_service.get_lead_detail()` | Full contractor profile with insights, score breakdown, talking points, contacts |
+| `get_stats` | `lead_service.get_stats()` | Aggregate metrics: total leads, avg score, certification breakdown, score distribution |
+| `compare_leads` | `get_lead_detail()` x2-3 | Side-by-side comparison of 2-3 contractors |
+
+**System prompt** includes roofing domain knowledge: GAF certification hierarchy, score composition (60pts deterministic + 40pts LLM), score tier thresholds, distributor product range. Instructs the agent to always query real data before answering, reference specific contractor names/scores, and suggest next actions.
+
+**Frontend:** Floating chat panel (`ChatPanel.tsx`) mounted in `layout.tsx` so it's available on every page. Dark toggle button in the bottom-right corner (z-60, above nav). Panel has a monospace header, scrollable message history with auto-scroll, and an input bar. User messages are dark (`bg-neutral-900`), assistant messages are light (`bg-neutral-50`) with full markdown rendering via `react-markdown` (headings, bold, lists, links opening in new tabs). Loading state shows animated dots.
+
+**Key decisions:**
+- **No new database tables** — conversation history is ephemeral in React state, sent with each request. Sessions reset on page refresh, which is appropriate for an exploratory chat tool
+- **No streaming** — the agentic loop makes 1-3 tool calls taking 3-8 seconds total. A loading indicator is sufficient; streaming adds significant complexity for marginal UX gain at this latency
+- **Tool results capped** — `per_page` capped at 20 in `search_leads`, `compare_leads` limited to 3 IDs, preventing the LLM from requesting huge result sets that would bloat context
+- **`asyncio.run()` in sync handler** — follows the same pattern as `pipeline.py`. Safe because FastAPI runs sync handlers in a thread pool with no existing event loop
+- **Reuses existing service layer** — zero new DB queries. All 4 tools call existing `lead_service` functions, keeping the chat agent consistent with the dashboard's data
+
 ### Frontend Dashboard (Instalily-Branded)
-Full Next.js 16 dashboard with Instalily AI's design language. IBM Plex Sans/Mono typography, off-white `#FEFFF7` backgrounds, floating dark gradient pill navigation, sharp-bordered editorial layouts, and monospace uppercase section eyebrows. Two pages: a filterable/sortable lead table dashboard with URL-synced state, and a comprehensive lead detail page with 8 insight sections (header, why now, talking points, score breakdown, buying signals, pain points, draft email, research summary). Contact cards with direct email/call/LinkedIn action buttons. Draft email displayed in a dark `#171717` card with one-click copy. Score explainability rendered as labeled progress bars. Research citations as clickable monospace pill links. 25 components, zero external UI libraries.
+Full Next.js 16 dashboard with Instalily AI's design language. IBM Plex Sans/Mono typography, off-white `#FEFFF7` backgrounds, floating dark gradient pill navigation, sharp-bordered editorial layouts, and monospace uppercase section eyebrows. Two pages: a filterable/sortable lead table dashboard with URL-synced state, and a comprehensive lead detail page with 8 insight sections (header, why now, talking points, score breakdown, buying signals, pain points, draft email, research summary). Contact cards with direct email/call/LinkedIn action buttons. Draft email displayed in a dark `#171717` card with one-click copy. Score explainability rendered as labeled progress bars. Research citations as clickable monospace pill links. 26 components across 6 layers.
 
 Starting the full stack:
 ```bash

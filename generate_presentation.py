@@ -1,18 +1,18 @@
 """
 Generate a PowerPoint presentation for the Roofing Lead Intelligence Platform.
-Styled to match the PartSelect case study reference deck.
+Interview-focused: structured for a 1-hour Q&A session with interviewers.
+Includes the agentic chat feature.
 """
 from pptx import Presentation
-from pptx.util import Inches, Pt, Emu
+from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_SHAPE
 
 # ── Constants ──────────────────────────────────────────────────────────────
 SLIDE_WIDTH = Inches(13.333)
 SLIDE_HEIGHT = Inches(7.5)
 
-# Colors
 BLACK = RGBColor(0x17, 0x17, 0x17)
 DARK_GRAY = RGBColor(0x40, 0x40, 0x40)
 MED_GRAY = RGBColor(0x6B, 0x6B, 0x6B)
@@ -30,15 +30,14 @@ FONT_MONO = "Consolas"
 
 
 def set_slide_bg(slide, color):
-    bg = slide.background
-    fill = bg.fill
+    fill = slide.background.fill
     fill.solid()
     fill.fore_color.rgb = color
 
 
 def add_textbox(slide, left, top, width, height, text, font_size=18,
-                bold=False, color=BLACK, font_name=FONT_BODY, alignment=PP_ALIGN.LEFT,
-                line_spacing=1.2):
+                bold=False, color=BLACK, font_name=FONT_BODY,
+                alignment=PP_ALIGN.LEFT):
     txBox = slide.shapes.add_textbox(left, top, width, height)
     tf = txBox.text_frame
     tf.word_wrap = True
@@ -53,31 +52,17 @@ def add_textbox(slide, left, top, width, height, text, font_size=18,
     return txBox
 
 
-def add_para(text_frame, text, font_size=18, bold=False, color=BLACK,
-             font_name=FONT_BODY, alignment=PP_ALIGN.LEFT, space_before=0, space_after=4):
-    p = text_frame.add_paragraph()
-    p.text = text
-    p.font.size = Pt(font_size)
-    p.font.bold = bold
-    p.font.color.rgb = color
-    p.font.name = font_name
-    p.alignment = alignment
-    p.space_before = Pt(space_before)
-    p.space_after = Pt(space_after)
-    return p
-
-
-def add_subtitle_line(slide, text, top=Inches(0.35)):
+def add_subtitle(slide, text="Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily", top=Inches(0.35)):
     add_textbox(slide, Inches(0.8), top, Inches(11.7), Inches(0.35),
-                text, font_size=11, color=MED_GRAY, font_name=FONT_BODY)
+                text, font_size=11, color=MED_GRAY)
 
 
-def add_section_title(slide, text, top=Inches(0.9)):
+def add_title(slide, text, top=Inches(0.9)):
     add_textbox(slide, Inches(0.8), top, Inches(11.7), Inches(0.6),
                 text, font_size=36, bold=True, color=BLACK)
 
 
-def add_colored_rect(slide, left, top, width, height, fill_color, border_color=None):
+def add_rect(slide, left, top, width, height, fill_color, border_color=None):
     shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
     shape.fill.solid()
     shape.fill.fore_color.rgb = fill_color
@@ -89,20 +74,13 @@ def add_colored_rect(slide, left, top, width, height, fill_color, border_color=N
     return shape
 
 
-def add_card(slide, left, top, width, height, fill_color=WHITE, border_color=None):
-    return add_colored_rect(slide, left, top, width, height, fill_color, border_color)
-
-
-def add_bullet_list(slide, left, top, width, height, items, font_size=16,
-                    color=BLACK, bullet="", spacing=6):
+def add_bullets(slide, left, top, width, height, items, font_size=16,
+                color=BLACK, bullet="\u2022  ", spacing=6):
     txBox = slide.shapes.add_textbox(left, top, width, height)
     tf = txBox.text_frame
     tf.word_wrap = True
     for i, item in enumerate(items):
-        if i == 0:
-            p = tf.paragraphs[0]
-        else:
-            p = tf.add_paragraph()
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         p.text = f"{bullet}{item}" if bullet else item
         p.font.size = Pt(font_size)
         p.font.color.rgb = color
@@ -112,243 +90,278 @@ def add_bullet_list(slide, left, top, width, height, items, font_size=16,
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# BUILD SLIDES
-# ══════════════════════════════════════════════════════════════════════════
 prs = Presentation()
 prs.slide_width = SLIDE_WIDTH
 prs.slide_height = SLIDE_HEIGHT
-blank_layout = prs.slide_layouts[6]  # Blank
+BL = prs.slide_layouts[6]  # Blank
 
-# ── SLIDE 1: Title ────────────────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, BLACK)
 
-add_textbox(slide, Inches(0.8), Inches(2.0), Inches(11.7), Inches(1.2),
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 1 — TITLE
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, BLACK)
+add_textbox(s, Inches(0.8), Inches(2.0), Inches(11.7), Inches(1.2),
             "Roofing Lead Intelligence Platform",
             font_size=44, bold=True, color=WHITE)
-
-add_textbox(slide, Inches(0.8), Inches(3.3), Inches(11.7), Inches(0.8),
+add_textbox(s, Inches(0.8), Inches(3.3), Inches(11.7), Inches(0.8),
             "AI-powered sales intelligence for roofing distributors",
             font_size=24, color=LIGHT_GRAY)
-
-add_textbox(slide, Inches(0.8), Inches(5.5), Inches(11.7), Inches(0.6),
+add_textbox(s, Inches(0.8), Inches(4.5), Inches(11.7), Inches(0.6),
+            "Scrape \u2192 Research \u2192 Score \u2192 Extract Contacts \u2192 Dashboard + Agentic Chat",
+            font_size=16, color=MED_GRAY, font_name=FONT_MONO)
+add_textbox(s, Inches(0.8), Inches(5.8), Inches(11.7), Inches(0.6),
             "Aryaman Gupta  \u00b7  Onsite Project  \u00b7  Instalily AI",
             font_size=16, color=MED_GRAY)
 
 
-# ── SLIDE 2: The Problem ──────────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "The Problem")
-
-problems = [
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 2 — THE PROBLEM
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "The Problem")
+add_bullets(s, Inches(0.8), Inches(1.8), Inches(11.7), Inches(5.0), [
     "Roofing distributors have no systematic way to identify and prioritize contractor leads",
     "Sales reps spend hours manually researching contractors \u2014 Googling names, checking reviews, guessing who to call first",
     "GAF\u2019s public directory has rich contractor data, but it\u2019s locked inside a JS-rendered, bot-protected website",
     "No existing tool combines scraping + AI enrichment + actionable sales intelligence in one workflow",
     "Without lead scoring, reps waste time on low-potential contractors while high-value leads go untouched",
-]
-add_bullet_list(slide, Inches(0.8), Inches(1.8), Inches(11.7), Inches(4.5),
-                problems, font_size=20, bullet="\u2022  ", spacing=14)
+], font_size=20, spacing=14)
 
 
-# ── SLIDE 3: The Solution ─────────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "The Solution")
-
-add_textbox(slide, Inches(0.8), Inches(1.7), Inches(11.7), Inches(0.7),
-            "An end-to-end platform that scrapes, enriches, scores, and presents contractor leads \u2014 turning raw directory data into actionable sales intelligence.",
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 3 — THE SOLUTION (OVERVIEW)
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "The Solution")
+add_textbox(s, Inches(0.8), Inches(1.7), Inches(11.7), Inches(0.7),
+            "An end-to-end platform that scrapes, enriches, scores, and presents contractor leads \u2014 plus an agentic chat interface for natural-language exploration.",
             font_size=18, color=DARK_GRAY)
 
-# 4 solution cards
-card_data = [
+cards = [
     ("Scrape", "Playwright + Coveo API\ninterception", "78 contractors from\nGAF directory"),
     ("Research", "Perplexity sonar-pro\nweb research engine", "Grounded insights with\ncitations per lead"),
-    ("Score", "Hybrid deterministic +\nLLM scoring (0\u2013100)", "Explainable 5-factor\nbreakdown"),
-    ("Serve", "Next.js dashboard +\nFastAPI REST API", "Filter, sort, drill into\nevery lead"),
+    ("Score + Enrich", "Hybrid deterministic +\nLLM scoring (0\u2013100)", "5-factor breakdown +\ntalking points, emails"),
+    ("Dashboard", "Next.js + FastAPI\nInstalily-branded UI", "Filter, sort, drill into\nevery lead"),
+    ("Agent Chat", "OpenAI function calling\nagentic loop (4 tools)", "Natural language queries\nover the leads DB"),
 ]
-card_w = Inches(2.7)
-card_h = Inches(3.0)
-gap = Inches(0.35)
-start_x = Inches(0.8)
-card_top = Inches(2.8)
-
-for i, (title, desc, detail) in enumerate(card_data):
-    x = start_x + i * (card_w + gap)
-    add_card(slide, x, card_top, card_w, card_h, fill_color=WHITE, border_color=BLACK)
-    add_textbox(slide, x + Inches(0.25), card_top + Inches(0.25), card_w - Inches(0.5), Inches(0.5),
-                title, font_size=22, bold=True, color=BLACK)
-    add_textbox(slide, x + Inches(0.25), card_top + Inches(0.9), card_w - Inches(0.5), Inches(0.9),
-                desc, font_size=15, color=DARK_GRAY)
-    add_textbox(slide, x + Inches(0.25), card_top + Inches(1.9), card_w - Inches(0.5), Inches(0.9),
-                detail, font_size=14, color=MED_GRAY, font_name=FONT_MONO)
+cw, ch, gap = Inches(2.2), Inches(3.0), Inches(0.2)
+sx = Inches(0.5)
+cy = Inches(2.8)
+for i, (title, desc, detail) in enumerate(cards):
+    x = sx + i * (cw + gap)
+    add_rect(s, x, cy, cw, ch, WHITE, BLACK)
+    add_textbox(s, x + Inches(0.2), cy + Inches(0.2), cw - Inches(0.4), Inches(0.5),
+                title, font_size=20, bold=True)
+    add_textbox(s, x + Inches(0.2), cy + Inches(0.85), cw - Inches(0.4), Inches(0.9),
+                desc, font_size=14, color=DARK_GRAY)
+    add_textbox(s, x + Inches(0.2), cy + Inches(1.85), cw - Inches(0.4), Inches(0.9),
+                detail, font_size=13, color=MED_GRAY, font_name=FONT_MONO)
 
 
-# ── SLIDE 4: Architecture ─────────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "Architecture: Pipeline + API + Dashboard")
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 4 — ARCHITECTURE DIAGRAM
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Architecture: Pipeline + API + Dashboard + Agent")
 
-# Pipeline flow diagram using shapes
-flow_items = [
+flow = [
     ("GAF\nWebsite", DARK_GRAY),
     ("Playwright\nScraper", TEAL),
     ("Perplexity\nResearch", BLUE),
-    ("OpenAI\nScoring", ORANGE),
+    ("OpenAI\nScoring +\nContacts", ORANGE),
     ("SQLite\nDatabase", GREEN),
     ("FastAPI\nREST API", DARK_GRAY),
     ("Next.js\nDashboard", BLACK),
 ]
+bw, bh, aw = Inches(1.45), Inches(1.15), Inches(0.3)
+bx, by = Inches(0.4), Inches(2.2)
+for i, (label, color) in enumerate(flow):
+    x = bx + i * (bw + aw)
+    sh = add_rect(s, x, by, bw, bh, color)
+    sh.text_frame.paragraphs[0].text = label
+    sh.text_frame.paragraphs[0].font.size = Pt(12)
+    sh.text_frame.paragraphs[0].font.color.rgb = WHITE
+    sh.text_frame.paragraphs[0].font.bold = True
+    sh.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+    sh.text_frame.word_wrap = True
+    if i < len(flow) - 1:
+        add_textbox(s, x + bw, by + Inches(0.25), aw, Inches(0.6),
+                    "\u2192", font_size=26, bold=True, color=MED_GRAY, alignment=PP_ALIGN.CENTER)
 
-box_w = Inches(1.45)
-box_h = Inches(1.1)
-arrow_w = Inches(0.35)
-start_x = Inches(0.5)
-flow_top = Inches(2.3)
+# Agent chat branch
+add_textbox(s, Inches(7.7), Inches(3.55), Inches(1.2), Inches(0.4),
+            "\u2191", font_size=26, bold=True, color=ORANGE, alignment=PP_ALIGN.CENTER)
+sh = add_rect(s, Inches(6.7), Inches(3.9), Inches(2.8), Inches(0.8), ORANGE)
+sh.text_frame.paragraphs[0].text = "Agentic Chat (OpenAI function calling)"
+sh.text_frame.paragraphs[0].font.size = Pt(12)
+sh.text_frame.paragraphs[0].font.color.rgb = WHITE
+sh.text_frame.paragraphs[0].font.bold = True
+sh.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+sh.text_frame.word_wrap = True
 
-for i, (label, color) in enumerate(flow_items):
-    x = start_x + i * (box_w + arrow_w)
-    shape = add_colored_rect(slide, x, flow_top, box_w, box_h, color)
-    shape.text_frame.paragraphs[0].text = label
-    shape.text_frame.paragraphs[0].font.size = Pt(13)
-    shape.text_frame.paragraphs[0].font.color.rgb = WHITE
-    shape.text_frame.paragraphs[0].font.bold = True
-    shape.text_frame.paragraphs[0].font.name = FONT_BODY
-    shape.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-    shape.text_frame.word_wrap = True
-
-    # Arrow
-    if i < len(flow_items) - 1:
-        add_textbox(slide, x + box_w, flow_top + Inches(0.25), arrow_w, Inches(0.6),
-                    "\u2192", font_size=28, bold=True, color=MED_GRAY, alignment=PP_ALIGN.CENTER)
-
-# Key architecture notes below
-arch_notes = [
-    "Pipeline runs offline \u2014 scrape, research, score, extract contacts, store. Dashboard never waits on LLM calls.",
-    "Each stage is independently runnable: re-score without re-researching, re-research without re-scraping.",
-    "Three DB tables: contractors (raw data), lead_insights (AI enrichments), contacts (decision-makers).",
-    "Clean separation: CLI for pipeline ops, REST API for reads, Next.js for presentation.",
-]
-add_bullet_list(slide, Inches(0.8), Inches(4.0), Inches(11.7), Inches(3.0),
-                arch_notes, font_size=16, bullet="\u2022  ", spacing=10)
+add_bullets(s, Inches(0.8), Inches(5.0), Inches(11.7), Inches(2.5), [
+    "Pipeline runs offline \u2014 dashboard and chat never wait on scraping or LLM enrichment calls",
+    "Each pipeline stage is independently runnable: re-score without re-researching, re-research without re-scraping",
+    "Chat agent queries the same DB via FastAPI \u2014 same service layer, same filters, same data",
+    "Clean separation: CLI for pipeline ops, REST API for reads, Next.js for presentation, Chat for exploration",
+], font_size=15, spacing=9)
 
 
-# ── SLIDE 5: Scraping ─────────────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "Stage 0: Scraping \u2014 Playwright + Coveo API Interception")
-
-scraping_points = [
-    "GAF\u2019s site is JS-rendered and protected by Akamai bot detection \u2014 can\u2019t use simple HTTP requests",
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 5 — SCRAPING
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Scraping: Playwright + Coveo API Interception")
+add_bullets(s, Inches(0.8), Inches(1.8), Inches(11.7), Inches(5.2), [
+    "GAF\u2019s site is JS-rendered and protected by Akamai bot detection \u2014 simple HTTP requests won\u2019t work",
     "Playwright launches headless Chromium with stealth settings (spoofed webdriver, plugins, permissions)",
-    "Instead of parsing DOM elements, we intercept the Coveo search API calls for clean structured JSON",
+    "Key insight: Instead of fragile DOM parsing, we intercept the Coveo search-as-a-service API calls for clean JSON",
     "Extract Bearer token from the first request, then paginate directly against Coveo\u2019s REST API",
-    "Profile page scraping runs with configurable concurrency for website URLs, years in business, about text",
-    "Parameterized: zip_code and distance are inputs, not hardcoded \u2014 works for any territory",
-    "Result: 78 contractors with name, address, phone, certification, rating, reviews, services, lat/lng, distance",
-]
-add_bullet_list(slide, Inches(0.8), Inches(1.8), Inches(11.7), Inches(5.0),
-                scraping_points, font_size=17, bullet="\u2022  ", spacing=10)
+    "Profile page scraping (configurable concurrency) extracts website URLs, years in business, about text",
+    "Parameterized: zip_code and distance are inputs \u2014 works for any territory, not hardcoded to 10013",
+    "Result: 78 contractors with name, address, phone, certification, rating, reviews, services, coordinates, distance",
+], font_size=18, spacing=12)
 
 
-# ── SLIDE 6: Three-Stage AI Enrichment ─────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "Three-Stage AI Enrichment Pipeline")
-
-add_textbox(slide, Inches(0.8), Inches(1.7), Inches(11.7), Inches(0.5),
-            "Multiple LLMs, each doing what they\u2019re best at.",
-            font_size=17, color=DARK_GRAY)
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 6 — THREE-STAGE AI ENRICHMENT
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Three-Stage AI Enrichment Pipeline")
+add_textbox(s, Inches(0.8), Inches(1.7), Inches(11.7), Inches(0.5),
+            "Multiple LLMs, each doing what they\u2019re best at. Stages run independently with --force, --limit, --concurrency flags.",
+            font_size=16, color=DARK_GRAY)
 
 stages = [
-    ("Stage 1: Perplexity \u2014 Web Research", BLUE,
-     ["Sends structured research queries to Perplexity sonar-pro for each contractor",
-      "Returns: company overview, decision-makers, Google review sentiment, recent projects, storm activity, growth signals, BBB rating, supplier intel",
-      "Grounded citations (URLs) stored alongside research text \u2014 reps can verify"]),
-    ("Stage 2: OpenAI \u2014 Hybrid Scoring", ORANGE,
-     ["Deterministic scoring (60/100 pts): certification tier, review volume (log-scaled), rating quality",
-      "LLM scoring (40/100 pts): business signals + why-now urgency extracted from research text",
-      "Also generates: talking points, buying signals, pain points, recommended pitch, draft email"]),
-    ("Stage 3: OpenAI \u2014 Contact Extraction", GREEN,
-     ["Extracts decision-maker contacts from research text: names, titles, emails, LinkedIn URLs",
-      "Provider-based architecture: PerplexityExtractor (implemented), Hunter.io (ready to plug in)",
-      "Deduplicated by name + contractor_id \u2014 re-running enriches, doesn\u2019t duplicate"]),
+    ("Stage 1: Perplexity \u2014 Web Research", BLUE, [
+        "Queries Perplexity sonar-pro for each contractor: company overview, decision-makers, review sentiment, storm activity, growth signals, BBB, supplier intel",
+        "Returns grounded citations (URLs) alongside research text \u2014 reps can verify every claim",
+    ]),
+    ("Stage 2: OpenAI \u2014 Hybrid Scoring + Insights", ORANGE, [
+        "Deterministic (60/100 pts): certification tier (0\u201330), review volume log-scaled (0\u201320), rating quality (0\u201310)",
+        "LLM-scored (40/100 pts): business signals (0\u201320) + why-now urgency (0\u201320) extracted from research text",
+        "Also generates: talking points, buying signals, pain points, recommended pitch, draft outreach email",
+    ]),
+    ("Stage 3: OpenAI \u2014 Contact Extraction", GREEN, [
+        "Extracts decision-maker contacts from research text: names, titles, emails, LinkedIn URLs",
+        "Provider-based architecture: PerplexityExtractor (implemented), Hunter.io (stub, ready to plug in)",
+    ]),
 ]
-
-stage_top = Inches(2.3)
-stage_h = Inches(1.5)
-stage_gap = Inches(0.15)
-
+st = Inches(2.3)
 for i, (title, color, bullets) in enumerate(stages):
-    y = stage_top + i * (stage_h + stage_gap)
-    # Color bar on left
-    add_colored_rect(slide, Inches(0.8), y, Inches(0.08), stage_h, color)
-    add_textbox(slide, Inches(1.1), y + Inches(0.05), Inches(11.0), Inches(0.35),
-                title, font_size=18, bold=True, color=BLACK)
-    for j, bullet in enumerate(bullets):
-        add_textbox(slide, Inches(1.3), y + Inches(0.4) + j * Inches(0.33), Inches(10.8), Inches(0.35),
-                    f"\u2022  {bullet}", font_size=14, color=DARK_GRAY)
+    bh = Inches(0.33) * len(bullets) + Inches(0.55)
+    y = st
+    add_rect(s, Inches(0.8), y, Inches(0.08), bh, color)
+    add_textbox(s, Inches(1.1), y + Inches(0.05), Inches(11.0), Inches(0.35),
+                title, font_size=18, bold=True)
+    for j, b in enumerate(bullets):
+        add_textbox(s, Inches(1.3), y + Inches(0.42) + j * Inches(0.35),
+                    Inches(10.8), Inches(0.35),
+                    f"\u2022  {b}", font_size=14, color=DARK_GRAY)
+    st += bh + Inches(0.1)
 
 
-# ── SLIDE 7: Hybrid Scoring Deep Dive ──────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "Hybrid Scoring: Why Not Fully LLM or Fully Deterministic?")
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 7 — HYBRID SCORING DEEP DIVE
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Hybrid Scoring: Why Not Fully LLM or Fully Deterministic?")
 
-# Two columns
-col_w = Inches(5.5)
-
-# Left column - Deterministic
-add_textbox(slide, Inches(0.8), Inches(1.9), col_w, Inches(0.4),
+cw = Inches(5.5)
+# Left col
+add_textbox(s, Inches(0.8), Inches(1.9), cw, Inches(0.4),
             "Deterministic (60 pts \u2014 Python)", font_size=20, bold=True, color=TEAL)
-det_items = [
+add_bullets(s, Inches(0.8), Inches(2.5), cw, Inches(2.5), [
     "certification_tier (0\u201330): President\u2019s Club=30, Master Elite=25, Certified=15",
     "review_volume (0\u201320): log-scaled from review count",
     "rating_quality (0\u201310): star rating weighted by review confidence",
-    "Same input = same score. Costs $0. Auditable.",
-]
-add_bullet_list(slide, Inches(0.8), Inches(2.5), col_w, Inches(2.5),
-                det_items, font_size=15, bullet="\u2022  ", spacing=10)
-
-# Right column - LLM
-add_textbox(slide, Inches(7.0), Inches(1.9), col_w, Inches(0.4),
+    "Same input = same score. Costs $0. Fully auditable.",
+], font_size=15, spacing=10)
+# Right col
+add_textbox(s, Inches(7.0), Inches(1.9), cw, Inches(0.4),
             "LLM-Scored (40 pts \u2014 gpt-4o-mini)", font_size=20, bold=True, color=ORANGE)
-llm_items = [
-    "business_signals (0\u201320): growth, hiring, expansion from research text",
+add_bullets(s, Inches(7.0), Inches(2.5), cw, Inches(2.5), [
+    "business_signals (0\u201320): growth, hiring, expansion from research",
     "why_now_urgency (0\u201320): storms, seasonal demand, supplier issues",
-    "Only an LLM can extract these from 3000 chars of unstructured research",
+    "Only an LLM can extract these from 3000 chars of unstructured text",
     "~$0.001 per contractor. All 78 leads scored for ~$0.05 total.",
-]
-add_bullet_list(slide, Inches(7.0), Inches(2.5), col_w, Inches(2.5),
-                llm_items, font_size=15, bullet="\u2022  ", spacing=10)
-
-# Bottom benefits
-add_textbox(slide, Inches(0.8), Inches(5.0), Inches(11.7), Inches(0.4),
-            "Key Benefits:", font_size=18, bold=True, color=BLACK)
-benefits = [
+], font_size=15, spacing=10)
+# Benefits
+add_textbox(s, Inches(0.8), Inches(4.9), Inches(11.7), Inches(0.4),
+            "Why this matters:", font_size=18, bold=True)
+add_bullets(s, Inches(0.8), Inches(5.4), Inches(11.7), Inches(1.8), [
     "Graceful degradation: if OpenAI is down, deterministic subtotal (60/100) still provides usable ranking",
-    "Pre-computed deterministic scores passed to LLM as \u201clocked \u2014 do not modify\u201d context",
-    "LLM scores clamped to valid ranges; arithmetic enforced in Python (don\u2019t trust the LLM\u2019s addition)",
-    "response_format={\"type\": \"json_object\"} for guaranteed parseable output",
+    "Pre-computed deterministic scores passed to LLM as \u201clocked \u2014 do not modify\u201d \u2014 prevents hallucinated scores",
+    "LLM scores clamped to valid ranges; final arithmetic enforced in Python (don\u2019t trust the LLM\u2019s addition)",
+    "response_format={\"type\": \"json_object\"} guarantees parseable output every time",
+], font_size=15, spacing=8)
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 8 — AGENTIC CHAT
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Agentic Chat: Natural Language Over the Leads DB")
+
+add_textbox(s, Inches(0.8), Inches(1.7), Inches(11.7), Inches(0.5),
+            "Sales reps can ask questions in plain English. The LLM decides which tools to call, executes them, and iterates until it has an answer.",
+            font_size=17, color=DARK_GRAY)
+
+# Architecture diagram
+add_textbox(s, Inches(0.8), Inches(2.4), Inches(11.7), Inches(0.4),
+            "User  \u2192  Next.js ChatPanel  \u2192  POST /api/chat  \u2192  Agent Loop (up to 5 rounds):  LLM decides \u2192 Tool call \u2192 Result \u2192 LLM decides \u2192 \u2026 \u2192 Final text",
+            font_size=14, color=DARK_GRAY, font_name=FONT_MONO)
+
+# 4 tools
+tools = [
+    ("search_leads", "Search & filter the leads database\nwith score, certification, name, sort, pagination"),
+    ("get_lead_detail", "Full detail for one contractor:\ninsights, score breakdown, talking points, contacts"),
+    ("get_stats", "Aggregate dashboard statistics:\ntotals, averages, cert breakdown, score distribution"),
+    ("compare_leads", "Side-by-side comparison of 2\u20133 leads\non score, certification, signals, insights"),
 ]
-add_bullet_list(slide, Inches(0.8), Inches(5.5), Inches(11.7), Inches(1.8),
-                benefits, font_size=15, bullet="\u2022  ", spacing=8)
+tw, th, tg = Inches(2.7), Inches(1.8), Inches(0.3)
+tx, ty = Inches(0.6), Inches(3.1)
+for i, (name, desc) in enumerate(tools):
+    x = tx + i * (tw + tg)
+    add_rect(s, x, ty, tw, th, WHITE, BLACK)
+    add_textbox(s, x + Inches(0.15), ty + Inches(0.15), tw - Inches(0.3), Inches(0.4),
+                name, font_size=15, bold=True, font_name=FONT_MONO)
+    add_textbox(s, x + Inches(0.15), ty + Inches(0.6), tw - Inches(0.3), Inches(1.0),
+                desc, font_size=13, color=DARK_GRAY)
+
+# Implementation details
+add_bullets(s, Inches(0.8), Inches(5.2), Inches(11.7), Inches(2.0), [
+    "OpenAI function calling with tool_choice=\"auto\" \u2014 LLM chains multiple tools in a single turn",
+    "Domain-aware system prompt: knows GAF tiers, score components, product categories, lead temperature thresholds",
+    "Tools dispatch to the same service layer as the REST API \u2014 one source of truth, no data divergence",
+    "Floating chat bubble UI with markdown rendering, loading animation, conversation history",
+    'Example: "Who are the top 5 Master Elite contractors near me?" \u2192 search_leads(certification="Master Elite", sort_by="lead_score", per_page=5)',
+], font_size=15, spacing=9)
 
 
-# ── SLIDE 8: Database Design ──────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "Data Management: Three-Table Schema")
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 9 — DATABASE DESIGN
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Data Management: Three-Table Schema")
 
-# Three table cards
 tables = [
     ("contractors", "23 columns", [
         "Raw scraped data from GAF",
@@ -375,324 +388,308 @@ tables = [
         "Deduped by name + contractor",
     ]),
 ]
-
-table_w = Inches(3.6)
-table_h = Inches(3.5)
-table_gap = Inches(0.4)
-table_start_x = Inches(0.8)
-table_top = Inches(1.9)
-
+tw, th, tg = Inches(3.6), Inches(3.5), Inches(0.4)
+tx, ty = Inches(0.8), Inches(1.9)
 for i, (name, cols, fields) in enumerate(tables):
-    x = table_start_x + i * (table_w + table_gap)
-    add_card(slide, x, table_top, table_w, table_h, fill_color=WHITE, border_color=BLACK)
-    add_textbox(slide, x + Inches(0.2), table_top + Inches(0.15), table_w - Inches(0.4), Inches(0.35),
-                f"{name}", font_size=18, bold=True, color=BLACK, font_name=FONT_MONO)
-    add_textbox(slide, x + Inches(0.2), table_top + Inches(0.5), table_w - Inches(0.4), Inches(0.25),
+    x = tx + i * (tw + tg)
+    add_rect(s, x, ty, tw, th, WHITE, BLACK)
+    add_textbox(s, x + Inches(0.2), ty + Inches(0.15), tw - Inches(0.4), Inches(0.35),
+                name, font_size=18, bold=True, font_name=FONT_MONO)
+    add_textbox(s, x + Inches(0.2), ty + Inches(0.5), tw - Inches(0.4), Inches(0.25),
                 cols, font_size=12, color=MED_GRAY, font_name=FONT_MONO)
-    for j, field in enumerate(fields):
-        add_textbox(slide, x + Inches(0.2), table_top + Inches(0.85) + j * Inches(0.38),
-                    table_w - Inches(0.4), Inches(0.35),
-                    f"\u2022  {field}", font_size=13, color=DARK_GRAY)
-
-# Key decisions below
-db_notes = [
+    for j, f in enumerate(fields):
+        add_textbox(s, x + Inches(0.2), ty + Inches(0.85) + j * Inches(0.38),
+                    tw - Inches(0.4), Inches(0.35),
+                    f"\u2022  {f}", font_size=13, color=DARK_GRAY)
+add_bullets(s, Inches(0.8), Inches(5.7), Inches(11.7), Inches(1.5), [
     "SQLAlchemy ORM \u2014 swap SQLite for Postgres by changing one connection string",
     "JSON fields stored as TEXT (SQLite-compatible), become native JSONB with GIN indexes in Postgres",
     "Three tables enable independent re-processing: re-score without re-researching, re-research without re-scraping",
-]
-add_bullet_list(slide, Inches(0.8), Inches(5.7), Inches(11.7), Inches(1.5),
-                db_notes, font_size=15, bullet="\u2022  ", spacing=8)
+], font_size=15, spacing=8)
 
 
-# ── SLIDE 9: REST API ─────────────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "REST API: 6 Endpoints, 11 Schemas, 3-Tier Architecture")
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 10 — REST API
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "REST API: 7 Endpoints, 11+ Schemas, 3-Tier Architecture")
 
-# Endpoint table
 endpoints = [
-    ("GET", "/api/leads", "Paginated list with filters (score, cert, search), sorting, URL-synced"),
-    ("GET", "/api/leads/{id}", "Full detail: contractor + insights + contacts (eager-loaded)"),
+    ("GET", "/api/leads", "Paginated list with filters (score range, cert, search), multi-column sorting"),
+    ("GET", "/api/leads/{id}", "Full detail: contractor + insights + contacts (eager-loaded joins)"),
     ("GET", "/api/stats", "Dashboard metrics: totals, averages, cert breakdown, score distribution"),
+    ("POST", "/api/chat", "Agentic chat \u2014 natural language queries with OpenAI function calling"),
     ("POST", "/api/pipeline/scrape", "Trigger scraping for any zip_code + distance"),
     ("POST", "/api/pipeline/enrich", "Run all 3 enrichment stages sequentially"),
     ("GET", "/api/pipeline/status", "Pipeline health: how many awaiting research/scoring/contacts"),
 ]
-
-ep_top = Inches(1.9)
+et = Inches(1.9)
 for i, (method, path, desc) in enumerate(endpoints):
-    y = ep_top + i * Inches(0.55)
-    method_color = GREEN if method == "GET" else ORANGE
-    add_textbox(slide, Inches(0.8), y, Inches(0.7), Inches(0.4),
-                method, font_size=14, bold=True, color=method_color, font_name=FONT_MONO)
-    add_textbox(slide, Inches(1.5), y, Inches(2.5), Inches(0.4),
+    y = et + i * Inches(0.52)
+    mc = GREEN if method == "GET" else ORANGE
+    add_textbox(s, Inches(0.8), y, Inches(0.7), Inches(0.4),
+                method, font_size=14, bold=True, color=mc, font_name=FONT_MONO)
+    add_textbox(s, Inches(1.5), y, Inches(2.5), Inches(0.4),
                 path, font_size=14, color=BLACK, font_name=FONT_MONO)
-    add_textbox(slide, Inches(4.2), y, Inches(8.5), Inches(0.4),
+    add_textbox(s, Inches(4.2), y, Inches(8.5), Inches(0.4),
                 desc, font_size=14, color=DARK_GRAY)
 
-# Architecture notes
-api_arch = [
-    "Schemas (schemas.py): 11 Pydantic models enforce type safety. Separate list vs. detail schemas avoid serializing multi-KB fields for table rows.",
-    "Service layer (lead_service.py): Isolates SQLAlchemy query logic. NULL-safe ordering, CASE WHEN bucketing for stats.",
-    "Routers (leads.py, pipeline.py): Thin handlers. Column whitelist prevents SQL injection. per_page capped at 100.",
-    "All handlers are sync def \u2014 enricher uses asyncio.run() internally; FastAPI runs sync handlers in a thread pool.",
-]
-add_bullet_list(slide, Inches(0.8), Inches(5.3), Inches(11.7), Inches(2.0),
-                api_arch, font_size=14, bullet="\u2022  ", spacing=8)
+add_bullets(s, Inches(0.8), Inches(5.7), Inches(11.7), Inches(1.8), [
+    "Schemas: 11 Pydantic models enforce type safety. Separate list vs. detail schemas avoid serializing multi-KB fields per row.",
+    "Service layer: Isolates SQLAlchemy query logic. NULL-safe ordering, CASE WHEN bucketing for stats.",
+    "All handlers sync def \u2014 enricher uses asyncio.run() internally; FastAPI runs sync handlers in a thread pool.",
+    "Column whitelist prevents SQL injection via dynamic sort. per_page capped at 100.",
+], font_size=14, spacing=7)
 
 
-# ── SLIDE 10: UI Dashboard ────────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "Dashboard UI: Instalily-Branded Design")
-
-ui_features = [
-    "Instalily design language: IBM Plex Sans/Mono, off-white #FEFFF7, sharp black borders, monospace uppercase eyebrows",
-    "Floating dark gradient pill navigation with backdrop blur",
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 11 — DASHBOARD UI
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Dashboard: Instalily-Branded UI")
+add_bullets(s, Inches(0.8), Inches(1.8), Inches(11.7), Inches(5.0), [
+    "Instalily design language: IBM Plex Sans/Mono, off-white #FEFFF7, sharp black borders, monospace uppercase section eyebrows",
     "StatsBar: 4 metric cells (Total Leads, Top Leads, Avg Score, Enriched) in sharp-bordered grid",
-    "FilterBar: Inline score tier pills (Hot 60+ / Warm / Cold) + certification filter pills + debounced search",
-    "LeadTable: Sortable columns (score, name, volume, distance), paginated, ScorePill + CertBadge inline",
+    "FilterBar: Inline score-tier pills (Hot 60+ / Warm / Cold) + certification pills + debounced text search (300ms)",
+    "LeadTable: Sortable columns (score, name, volume, distance) with paginated rows, ScorePill + CertBadge inline",
     "All filter/sort/page state synced to URL query params \u2014 every view is bookmarkable and shareable",
-    "25 components total, zero external UI libraries \u2014 pure Tailwind CSS v4",
-]
-add_bullet_list(slide, Inches(0.8), Inches(1.8), Inches(11.7), Inches(5.0),
-                ui_features, font_size=17, bullet="\u2022  ", spacing=12)
+    "Lead detail page: 8 insight sections \u2014 header, contacts, why-now banner, talking points, score breakdown, buying signals / pain points, draft email, research summary",
+    "Floating chat bubble (bottom-right) opens the agentic chat panel for natural-language queries",
+    "26 components, zero external UI libraries \u2014 pure Tailwind CSS v4 + Next.js 16 App Router",
+], font_size=17, spacing=11)
 
 
-# ── SLIDE 11: UI Lead Detail ──────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "Lead Detail Page: 8 Insight Sections")
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 12 — LEAD DETAIL PAGE (8 SECTIONS)
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Lead Detail Page: 8 Insight Sections")
 
-# Layout the 8 sections as cards
 sections = [
-    ("LeadHeader", "Name, score pill, cert badge,\nmeta (location, phone, website, yrs)"),
+    ("LeadHeader", "Name, score pill, cert badge,\nmeta (city, phone, website, yrs)"),
     ("ContactCard", "Decision-maker cards with\nemail / call / LinkedIn buttons"),
     ("WhyNowBanner", "Time-sensitive urgency signal\n(orange left-border accent)"),
     ("TalkingPoints", "Numbered list (01, 02, 03)\nmonospace formatting"),
     ("ScoreBreakdown", "5 labeled progress bars\nshowing each scoring factor"),
     ("InsightsGrid", "Buying signals (green) +\npain points (red) two-column"),
     ("DraftEmail", "Dark #171717 card with\none-click copy button"),
-    ("ResearchSummary", "Collapsible text + citation\nsource pills (clickable)"),
+    ("ResearchSummary", "Collapsible text + citation\nsource pills (clickable links)"),
 ]
-
-card_w = Inches(2.7)
-card_h = Inches(1.8)
-gap_x = Inches(0.3)
-gap_y = Inches(0.25)
-start_x = Inches(0.6)
-start_y = Inches(1.9)
-
+cw, ch = Inches(2.7), Inches(1.8)
+gx, gy = Inches(0.3), Inches(0.25)
+sx, sy = Inches(0.6), Inches(1.9)
 for i, (name, desc) in enumerate(sections):
-    col = i % 4
-    row = i // 4
-    x = start_x + col * (card_w + gap_x)
-    y = start_y + row * (card_h + gap_y)
-    add_card(slide, x, y, card_w, card_h, fill_color=WHITE, border_color=BLACK)
-    add_textbox(slide, x + Inches(0.15), y + Inches(0.15), card_w - Inches(0.3), Inches(0.35),
-                name, font_size=16, bold=True, color=BLACK, font_name=FONT_MONO)
-    add_textbox(slide, x + Inches(0.15), y + Inches(0.55), card_w - Inches(0.3), Inches(1.0),
+    c, r = i % 4, i // 4
+    x = sx + c * (cw + gx)
+    y = sy + r * (ch + gy)
+    add_rect(s, x, y, cw, ch, WHITE, BLACK)
+    add_textbox(s, x + Inches(0.15), y + Inches(0.15), cw - Inches(0.3), Inches(0.35),
+                name, font_size=16, bold=True, font_name=FONT_MONO)
+    add_textbox(s, x + Inches(0.15), y + Inches(0.55), cw - Inches(0.3), Inches(1.0),
                 desc, font_size=13, color=DARK_GRAY)
 
-add_textbox(slide, Inches(0.8), Inches(6.2), Inches(11.7), Inches(0.5),
+add_textbox(s, Inches(0.8), Inches(6.2), Inches(11.7), Inches(0.5),
             "Lead detail is a server component \u2014 single fetch, data passed as props. Only CopyButton and ResearchSummary are client components.",
             font_size=14, color=MED_GRAY)
 
 
-# ── SLIDE 12: Sales Intelligence Output ───────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "What Sales Reps Actually Get")
-
-add_textbox(slide, Inches(0.8), Inches(1.7), Inches(11.7), Inches(0.4),
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 13 — WHAT REPS ACTUALLY GET (CONCRETE EXAMPLE)
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "What Sales Reps Actually Get")
+add_textbox(s, Inches(0.8), Inches(1.7), Inches(11.7), Inches(0.4),
             "Example: Grapevine Pro \u2014 Score 67 (Hot), President\u2019s Club, 449 reviews, Iselin NJ",
             font_size=17, bold=True, color=DARK_GRAY)
 
-output_items = [
+add_bullets(s, Inches(0.8), Inches(2.3), Inches(11.7), Inches(4.8), [
     'Score Breakdown: Certification 30/30 | Reviews 18/20 | Rating 9/10 | Biz Signals 10/20 | Why Now 0/20',
     'Talking Point: "Mention their 449 Google reviews \u2014 they clearly value reputation"',
     'Talking Point: "Ask about their storm restoration pipeline and material lead times"',
     'Buying Signal: "High volume of storm damage repair work"',
-    'Buying Signal: "Recently expanded service area"',
     'Pain Point: "Current supplier has inconsistent delivery times (per Google reviews)"',
     'Why Now: "Major hailstorm hit their primary service area 3 weeks ago"',
     'Recommended Pitch: "Position as reliable, high-volume supplier for storm season..."',
-    'Draft Email: Personalized outreach ready to copy and send',
-    'Key Contact: Frank N. \u2014 Owner \u2014 email, phone, LinkedIn',
-]
-add_bullet_list(slide, Inches(0.8), Inches(2.3), Inches(11.7), Inches(4.5),
-                output_items, font_size=16, bullet="\u2022  ", spacing=9)
+    'Draft Email: Personalized outreach with subject line, ready to copy and send',
+    'Key Contact: Frank N. \u2014 Owner \u2014 email, phone, LinkedIn (with confidence level)',
+    'Chat: "Compare Grapevine Pro with Great American Roofing" \u2192 side-by-side analysis via agent',
+], font_size=16, spacing=9)
 
 
-# ── SLIDE 13: Testing ─────────────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "Testing: 119 Tests Across the Full Backend")
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 14 — TESTING
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Testing: 119 Tests Across the Full Backend")
 
-# Test categories
-test_cats = [
-    ("Service Layer (25 tests)", [
-        "Pagination, all filter combinations, sort ordering",
-        "NULL score handling, stats aggregation, score distribution bucketing",
+cats = [
+    ("Service Layer \u2014 25 tests", [
+        "Pagination, all filter combinations, sort ordering, NULL score handling",
+        "Stats aggregation, score distribution bucketing",
     ]),
-    ("API Endpoints (19 tests)", [
+    ("API Endpoints \u2014 19 tests", [
         "Full HTTP round-trip via FastAPI TestClient with in-memory SQLite (StaticPool)",
         "Response shapes, pagination metadata, 404 handling, input validation (422)",
     ]),
-    ("Pipeline (75 tests)", [
-        "Scraper parsing, research engine (async mocking), scoring deterministic functions",
-        "Enricher orchestration, ORM model methods, certification tiers, citation extraction",
+    ("Pipeline \u2014 75 tests", [
+        "Scraper Coveo response parsing, research engine (async mocking), scoring deterministic functions",
+        "Enricher orchestration, ORM model methods, certification tiers, citation extraction, prompt templates",
     ]),
 ]
-
-cat_top = Inches(1.9)
-for i, (category, items) in enumerate(test_cats):
-    y = cat_top + i * Inches(1.5)
-    add_textbox(slide, Inches(0.8), y, Inches(11.7), Inches(0.4),
-                category, font_size=19, bold=True, color=BLACK)
+ct = Inches(1.9)
+for i, (cat, items) in enumerate(cats):
+    y = ct + i * Inches(1.5)
+    add_textbox(s, Inches(0.8), y, Inches(11.7), Inches(0.4),
+                cat, font_size=19, bold=True)
     for j, item in enumerate(items):
-        add_textbox(slide, Inches(1.1), y + Inches(0.45) + j * Inches(0.35),
+        add_textbox(s, Inches(1.1), y + Inches(0.45) + j * Inches(0.38),
                     Inches(11.0), Inches(0.35),
                     f"\u2022  {item}", font_size=15, color=DARK_GRAY)
 
-add_textbox(slide, Inches(0.8), Inches(5.8), Inches(11.7), Inches(0.4),
-            "Run with:  cd backend && uv run pytest -v",
+add_textbox(s, Inches(0.8), Inches(5.8), Inches(11.7), Inches(0.4),
+            "Run:  cd backend && uv run pytest -v",
             font_size=15, color=MED_GRAY, font_name=FONT_MONO)
 
 
-# ── SLIDE 14: Tech Stack ──────────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "Tech Stack")
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 15 — TECH STACK
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Tech Stack")
 
 stack = [
     ("Layer", "Technology", "Why"),
     ("Frontend", "Next.js 16 + React 19 + Tailwind 4", "App Router, server components, brand styling"),
     ("Backend", "FastAPI + Python 3.9", "Async-native, auto-generated OpenAPI docs"),
     ("Research LLM", "Perplexity sonar-pro", "Web search with grounded citations"),
-    ("Scoring LLM", "OpenAI gpt-4o-mini", "Structured JSON output, lowest cost"),
-    ("Database", "SQLite (SQLAlchemy ORM)", "Zero-config, swap to Postgres with one line"),
-    ("Scraping", "Playwright (Chromium)", "Bypasses Akamai bot detection, Coveo API interception"),
-    ("CLI", "argparse + async", "Independent stage execution with --force, --limit, --concurrency"),
+    ("Scoring LLM", "OpenAI gpt-4o-mini", "Structured JSON output, lowest cost, fastest"),
+    ("Chat Agent", "OpenAI gpt-4o-mini (function calling)", "Agentic loop with 4 domain tools"),
+    ("Database", "SQLite (SQLAlchemy ORM)", "Zero-config dev, swap to Postgres with one line"),
+    ("Scraping", "Playwright (Chromium)", "Bypasses Akamai, Coveo API interception"),
+    ("CLI", "argparse + async", "Independent stages: --force, --limit, --concurrency"),
     ("Testing", "pytest (119 tests)", "In-memory SQLite, async mocking, TestClient"),
 ]
 
-header_top = Inches(1.9)
-col_widths = [Inches(1.5), Inches(4.0), Inches(6.0)]
-col_starts = [Inches(0.8), Inches(2.3), Inches(6.3)]
+cols = [Inches(1.5), Inches(4.2), Inches(5.8)]
+cxs = [Inches(0.8), Inches(2.3), Inches(6.5)]
+ht = Inches(1.8)
 
 for i, (layer, tech, why) in enumerate(stack):
-    y = header_top + i * Inches(0.52)
-    is_header = i == 0
-    for j, (text, col_start, col_width) in enumerate(zip([layer, tech, why], col_starts, col_widths)):
-        add_textbox(slide, col_start, y, col_width, Inches(0.45),
-                    text, font_size=15 if not is_header else 14,
-                    bold=is_header, color=BLACK if not is_header else MED_GRAY,
-                    font_name=FONT_MONO if is_header else FONT_BODY)
+    y = ht + i * Inches(0.52)
+    hdr = (i == 0)
+    for j, (text, cx, cw) in enumerate(zip([layer, tech, why], cxs, cols)):
+        add_textbox(s, cx, y, cw, Inches(0.45),
+                    text, font_size=15 if not hdr else 14,
+                    bold=hdr, color=BLACK if not hdr else MED_GRAY,
+                    font_name=FONT_MONO if hdr else FONT_BODY)
 
 
-# ── SLIDE 15: Scalability & Future ────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "Scalability: Built to Grow")
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 16 — SCALABILITY & FUTURE
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Scalability: Built to Grow")
 
-scale_items = [
-    ("Database \u2192 Postgres", "One connection string change. Add Alembic migrations, JSONB with GIN indexes, pgBouncer pooling."),
-    ("Pipeline \u2192 Celery + Redis", "Async task queue for pipeline execution. Fan out scraping across ZIP codes in parallel workers."),
-    ("Search \u2192 Full-Text + Semantic", "Postgres tsvector for name/address lookup. pgvector for semantic search over research summaries."),
-    ("Auth \u2192 Multi-Tenant", "JWT authentication. Territory assignment \u2014 each rep sees leads in their region. Row-level security."),
+items = [
+    ("Database \u2192 Postgres", "One connection string. Add Alembic migrations, JSONB with GIN indexes, pgBouncer pooling."),
+    ("Pipeline \u2192 Celery + Redis", "Async task queue. Fan out scraping across ZIP codes in parallel workers."),
+    ("Search \u2192 Full-Text + Semantic", "Postgres tsvector for name/address. pgvector for semantic search over research summaries."),
+    ("Auth \u2192 Multi-Tenant", "JWT auth. Territory assignment \u2014 each rep sees their region. Row-level security."),
+    ("Chat \u2192 Streaming", "SSE streaming for real-time token delivery. Multi-turn memory with conversation persistence."),
     ("Observability", "Structured logging, LLM token/latency tracking, pipeline health dashboard with alerting."),
-    ("Integrations", "CRM export (Salesforce, HubSpot). Email integration \u2014 send drafted emails from the platform."),
+    ("Integrations", "CRM export (Salesforce, HubSpot). Email send from platform. Sync rep notes back."),
 ]
-
-item_top = Inches(1.9)
-for i, (title, desc) in enumerate(scale_items):
-    y = item_top + i * Inches(0.85)
-    add_textbox(slide, Inches(0.8), y, Inches(3.2), Inches(0.35),
-                title, font_size=17, bold=True, color=BLACK)
-    add_textbox(slide, Inches(4.2), y, Inches(8.5), Inches(0.7),
+it = Inches(1.9)
+for i, (title, desc) in enumerate(items):
+    y = it + i * Inches(0.75)
+    add_textbox(s, Inches(0.8), y, Inches(3.2), Inches(0.35),
+                title, font_size=17, bold=True)
+    add_textbox(s, Inches(4.2), y, Inches(8.5), Inches(0.65),
                 desc, font_size=15, color=DARK_GRAY)
 
 
-# ── SLIDE 16: Key Design Decisions (Q&A Prep) ─────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "Key Design Decisions")
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 17 — KEY DESIGN DECISIONS (Q&A PREP)
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "Key Design Decisions (Anticipated Q&A)")
 
 decisions = [
     "Why Coveo API interception instead of DOM scraping?\n\u2192  Structured JSON is more reliable, faster, and survives UI redesigns. DOM parsing is fragile.",
-    "Why Perplexity + OpenAI instead of one model?\n\u2192  Perplexity excels at grounded web search with citations. OpenAI excels at structured JSON output. Each does what it\u2019s best at.",
-    "Why hybrid scoring instead of fully LLM?\n\u2192  Deterministic where objectively knowable (certifications, reviews). LLM where reading comprehension is required (growth signals, urgency). Reproducible + intelligent.",
-    "Why SQLite instead of Postgres?\n\u2192  Zero-config for the demo. SQLAlchemy ORM makes the swap a one-line change. Schema is already Postgres-ready (JSONB, indexes).",
-    "Why sync API handlers?\n\u2192  Enricher uses asyncio.run() internally. Async handlers would crash (nested event loops). FastAPI\u2019s thread pool handles this transparently.",
-    "Why separate list vs. detail schemas?\n\u2192  List endpoint returns ~12 fields per row. Detail returns multi-KB text fields. Separate schemas avoid serializing research_summary for every table row.",
+    "Why Perplexity + OpenAI instead of one model?\n\u2192  Perplexity excels at grounded web search with citations. OpenAI excels at structured JSON output. Best tool for each job.",
+    "Why hybrid scoring instead of fully LLM?\n\u2192  Deterministic where objectively knowable (certs, reviews). LLM where reading comprehension is needed. Reproducible + intelligent.",
+    "Why an agentic chat loop instead of pre-canned queries?\n\u2192  Reps ask unpredictable questions. The agent composes tools dynamically \u2014 compare, filter, drill-in \u2014 in ways we can\u2019t anticipate.",
+    "Why SQLite for the demo?\n\u2192  Zero-config. SQLAlchemy ORM makes the Postgres swap a one-line change. Schema is already production-ready.",
+    "Why sync API handlers when the pipeline is async?\n\u2192  Enricher calls asyncio.run() internally. Async handlers would crash (nested event loops). FastAPI\u2019s thread pool handles it.",
 ]
-add_bullet_list(slide, Inches(0.8), Inches(1.8), Inches(11.7), Inches(5.2),
-                decisions, font_size=15, bullet="", spacing=10)
+add_bullets(s, Inches(0.8), Inches(1.8), Inches(11.7), Inches(5.2),
+            decisions, font_size=15, bullet="", spacing=10)
 
 
-# ── SLIDE 17: Numbers at a Glance ─────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, OFF_WHITE)
-add_subtitle_line(slide, "Roofing Lead Intelligence Platform \u2014 Aryaman Gupta | Instalily")
-add_section_title(slide, "By the Numbers")
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 18 — BY THE NUMBERS
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, OFF_WHITE)
+add_subtitle(s)
+add_title(s, "By the Numbers")
 
 metrics = [
     ("78", "Contractors scraped\nand enriched"),
     ("119", "Backend tests\npassing"),
-    ("25", "Frontend\ncomponents"),
+    ("26", "Frontend\ncomponents"),
     ("~$0.05", "Total cost to score\nall 78 leads"),
     ("3", "AI enrichment\nstages"),
-    ("6", "REST API\nendpoints"),
-    ("11", "Pydantic\nschemas"),
+    ("7", "REST API\nendpoints"),
+    ("4", "Agentic chat\ntools"),
     ("5", "Score breakdown\nfactors"),
 ]
-
-metric_w = Inches(2.6)
-metric_h = Inches(1.6)
-metric_gap = Inches(0.3)
-metric_start_x = Inches(0.6)
-metric_top = Inches(1.9)
-
-for i, (number, label) in enumerate(metrics):
-    col = i % 4
-    row = i // 4
-    x = metric_start_x + col * (metric_w + metric_gap)
-    y = metric_top + row * (metric_h + metric_gap)
-    add_card(slide, x, y, metric_w, metric_h, fill_color=WHITE, border_color=BLACK)
-    add_textbox(slide, x + Inches(0.15), y + Inches(0.15), metric_w - Inches(0.3), Inches(0.7),
-                number, font_size=36, bold=True, color=BLACK, font_name=FONT_MONO,
-                alignment=PP_ALIGN.CENTER)
-    add_textbox(slide, x + Inches(0.15), y + Inches(0.9), metric_w - Inches(0.3), Inches(0.6),
+mw, mh, mg = Inches(2.6), Inches(1.6), Inches(0.3)
+mx, my = Inches(0.6), Inches(1.9)
+for i, (num, label) in enumerate(metrics):
+    c, r = i % 4, i // 4
+    x = mx + c * (mw + mg)
+    y = my + r * (mh + mg)
+    add_rect(s, x, y, mw, mh, WHITE, BLACK)
+    add_textbox(s, x + Inches(0.15), y + Inches(0.15), mw - Inches(0.3), Inches(0.7),
+                num, font_size=36, bold=True, font_name=FONT_MONO, alignment=PP_ALIGN.CENTER)
+    add_textbox(s, x + Inches(0.15), y + Inches(0.9), mw - Inches(0.3), Inches(0.6),
                 label, font_size=14, color=DARK_GRAY, alignment=PP_ALIGN.CENTER)
 
 
-# ── SLIDE 18: Closing ─────────────────────────────────────────────────────
-slide = prs.slides.add_slide(blank_layout)
-set_slide_bg(slide, BLACK)
-
-add_textbox(slide, Inches(0.8), Inches(1.8), Inches(11.7), Inches(1.0),
+# ─────────────────────────────────────────────────────────────────────────
+# SLIDE 19 — CLOSING
+# ─────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BL)
+set_slide_bg(s, BLACK)
+add_textbox(s, Inches(0.8), Inches(1.5), Inches(11.7), Inches(1.0),
             "Roofing Lead Intelligence Platform",
             font_size=40, bold=True, color=WHITE)
-
-closing_points = [
-    "End-to-End Pipeline \u2014 Scrape, research, score, extract contacts, serve via API, display in dashboard",
-    "Hybrid AI Scoring \u2014 Deterministic + LLM for reproducibility and intelligence",
+add_bullets(s, Inches(0.8), Inches(3.0), Inches(11.7), Inches(3.0), [
+    "End-to-End Pipeline \u2014 Scrape, research, score, extract contacts, store, serve, display",
+    "Hybrid AI Scoring \u2014 Deterministic + LLM for reproducibility, explainability, and intelligence",
+    "Agentic Chat \u2014 Natural language interface with 4 tools and multi-step reasoning over the leads DB",
     "Actionable Intelligence \u2014 Talking points, buying signals, pain points, draft emails, decision-maker contacts",
-    "Production-Ready Architecture \u2014 119 tests, clean separation, scales to Postgres/Celery with minimal changes",
-]
-add_bullet_list(slide, Inches(0.8), Inches(3.2), Inches(11.7), Inches(2.8),
-                closing_points, font_size=18, color=LIGHT_GRAY, bullet="\u2022  ", spacing=14)
+    "Production-Ready \u2014 119 tests, clean separation, scales to Postgres/Celery/multi-tenant with minimal changes",
+], font_size=18, color=LIGHT_GRAY, spacing=14)
 
-add_textbox(slide, Inches(0.8), Inches(6.3), Inches(11.7), Inches(0.5),
+add_textbox(s, Inches(0.8), Inches(6.3), Inches(11.7), Inches(0.5),
             "Built by Aryaman Gupta for Instalily AI",
             font_size=16, color=MED_GRAY)
 
@@ -700,7 +697,7 @@ add_textbox(slide, Inches(0.8), Inches(6.3), Inches(11.7), Inches(0.5),
 # ══════════════════════════════════════════════════════════════════════════
 # SAVE
 # ══════════════════════════════════════════════════════════════════════════
-output_path = "/Users/aryamangupta/projects-github/instalily-onsite/RoofLeads_Presentation.pptx"
-prs.save(output_path)
-print(f"Saved to {output_path}")
+out = "/Users/aryamangupta/projects-github/instalily-onsite/RoofLeads_Presentation.pptx"
+prs.save(out)
+print(f"Saved to {out}")
 print(f"Total slides: {len(prs.slides)}")
